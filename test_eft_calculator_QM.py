@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import sys
 import numpy as np
 from time import time
 import heapq
@@ -51,22 +51,24 @@ class Classical_calculator:
         force = fvdw + felec
         return ener, force
 
-def test_random_set():
+def test_random_set(log_list):
     e0 = []
     e1 = []
+    e2 = []
     fce0 = []
     fce1 = []
+    fce2 = []
     trq0 = []
     trq1 = []
-    all = []
+    trq2 = []
+    all  =  []
     t1 = time()
-    for i in range(2, 2000):
+    for name in open(log_list, "r").readlines():
         # load atomic coor 
-        name = 'test%04d.inp' % i
-        coors = load_coordinates(name)
-        # evaluate with analytical function
-        eft = cc.eval(coors)
-        e0.append(eft[0])
+        name = name.rstrip()
+        # QM value
+        eft, coors = calculator._parseQMlog(name)
+        e0.append(eft[0]) 
         fce0 += list(eft[1:4])
         trq0 += list(eft[4:7])
         # convert atomic coor to r, phi, theta... 
@@ -77,6 +79,11 @@ def test_random_set():
         e1.append(eft[0])
         fce1 += list(eft[1:4])
         trq1 += list(eft[4:7])
+        # evaluate with analytical function
+        eft = cc.eval(coors)
+        e2.append(eft[0])
+        fce2 += list(eft[1:4])
+        trq2 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))
         all.append((-np.linalg.norm(np.array(fce0) - np.array(fce1)), name))
     t2 = time()
@@ -109,9 +116,9 @@ if __name__ == '__main__':
     t0 = time()
     cc = Classical_calculator()
     #calculator.setup('grid_data.txt')
-    calculator.setup()
-    calculator.fill_grid(cc)
+    calculator.setup('grid.dat')
+    #calculator.fill_grid(cc)
     t1 = time()
     print 'took %.1f s to fill the grid' % (t1 - t0)
-    test_random_set()
+    test_random_set(sys.argv[1]) # a file with a list of location of QM .log file
 

@@ -7,5 +7,6 @@ dist
 build
 __*
 #big data will save as .dat
-*.dat
+*.log
+*.swp
 *.dat
