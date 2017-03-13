@@ -66,10 +66,7 @@ class EFT_calculator:
         ni, nj is the atom num. of framgment i,j 
         """
         AU2KCAL = 23.0605*27.2116
-<<<<<<< HEAD
-=======
         HperB2toque = 1185.82 # 1Hartree/Bohr = 1185.82 kcal/mol/Angstrom
->>>>>>> 90064fae1eaf31a233306efd3b15c4628505dbab
         frgE1 = -76.2987810745 * AU2KCAL
         frgE2 = -76.2987810745 * AU2KCAL
         e = 0.0
@@ -87,11 +84,7 @@ class EFT_calculator:
             if 'E(MP2)=' in i : e = float(i.split()[1]) * AU2KCAL - frgE1 - frgE2
             if 'GRADIENT OF THE ENERGY' in i: 
                 for gline in log[idx+4:idx+10]:
-<<<<<<< HEAD
-                    gradients.append([float(g) for g in gline.split()[2:5]])
-=======
                     gradients.append([float(g) * HperB2toque for g in gline.split()[2:5]])
->>>>>>> 90064fae1eaf31a233306efd3b15c4628505dbab
                 break
         coords = np.array(coords)
         gradients = np.array(gradients)
@@ -100,11 +93,7 @@ class EFT_calculator:
         for grad in gradients[3:]:
             f += grad
             t += np.cross(grad - com1, grad)
-<<<<<<< HEAD
-        return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]])
-=======
         return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]]), coords
->>>>>>> 90064fae1eaf31a233306efd3b15c4628505dbab
             
         
     # Evaluate the Xcom and q for a pair of mols by querying the grid
