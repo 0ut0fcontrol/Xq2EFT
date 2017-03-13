@@ -52,11 +52,7 @@ class EFT_calculator:
             loglist[i] = loglist[i].rstrip()
         i = 0
         for leaf, x in self.grid._gen_leaves_with_x():
-<<<<<<< HEAD
-            leaf.y = self._parseQMlog(loglist[i])
-=======
             leaf.y, coord = self._parseQMlog(loglist[i]) #coord is not using here
->>>>>>> 90064fae1eaf31a233306efd3b15c4628505dbab
             i += 1
             if i >=len(loglist):break
 

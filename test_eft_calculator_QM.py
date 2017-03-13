@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys
 import numpy as np
 from time import time
@@ -94,7 +94,7 @@ def test_random_set(log_list):
     #    print -de, name
 
     # make a plot
-    _, axarr = plt.subplots(1, 3)
+    _, axarr = plt.subplots(2, 2)
     p = np.corrcoef(e0, e1)[0, 1]
     print "Energy: p =", p
     axarr[0].scatter(e0, e1)
