@@ -101,6 +101,8 @@ class Grid:
             file.write(fmt % tuple(self.rs))
             fmt = '%f\t' * 6 + '%f\n'
             for leaf, x in self._gen_leaves_with_x():
+                if leaf.y == None:
+                    leaf.y = [0.0 for i in range(7)]
                 file.write(fmt % tuple(leaf.y))
 
     # load the grid parameters from a text file, build the grid structure, then 
