@@ -1,0 +1,10 @@
+# Python:
+*.py[cod]
+*.so
+*.egg
+*.egg-info
+dist
+build
+__*
+#big data will save as .dat
+*.dat
