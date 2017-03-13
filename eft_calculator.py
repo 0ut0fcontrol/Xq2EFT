@@ -45,6 +45,52 @@ class EFT_calculator:
         self.grid.fill(f)
         self.grid.save(filename)
 
+    def fill_with_QM(self, logfilelist):
+        """ input filename is a file with all gird GAMESS result log in order."""
+        loglist = open(logfilelist, 'r').readlines()
+        for i in range(len(loglist)):
+            loglist[i] = loglist[i].rstrip()
+        i = 0
+        for leaf, x in self.grid._gen_leaves_with_x():
+            leaf.y = self._parseQMlog(loglist[i])
+            i += 1
+            if i >=len(loglist):break
+
+    def _parseQMlog(self, logname):
+        """extract energy, force from GAMESS log file and 
+        return (energy, force[0],force[1],force[2], torque[0],torque[1],torque[2])
+        ni, nj is the atom num. of framgment i,j 
+        """
+        AU2KCAL = 23.0605*27.2116
+        frgE1 = -76.2987810745 * AU2KCAL
+        frgE2 = -76.2987810745 * AU2KCAL
+        e = 0.0
+        f = np.zeros(3)
+        t = np.zeros(3)
+        logf = open(logname, 'r')
+        log = logf.readlines()
+        logf.close()
+        coords = []
+        gradients = []
+        for idx, i in enumerate(log):
+            if i[0:13] == " INPUT CARD> " and len(i.split()) == 7:
+                try:coords.append([float(i) for i in i.split()[4:7]])
+                except ValueError:continue
+            if 'E(MP2)=' in i : e = float(i.split()[1]) * AU2KCAL - frgE1 - frgE2
+            if 'GRADIENT OF THE ENERGY' in i: 
+                for gline in log[idx+4:idx+10]:
+                    gradients.append([float(g) for g in gline.split()[2:5]])
+                break
+        coords = np.array(coords)
+        gradients = np.array(gradients)
+        # from com => probe
+        com1 = self.mol.getCOM(coords[3:])
+        for grad in gradients[3:]:
+            f += grad
+            t += np.cross(grad - com1, grad)
+        return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]])
+            
+        
     # Evaluate the Xcom and q for a pair of mols by querying the grid
     def eval(self, Xcom0, q0, Xcom1, q1):
         # move COM of mol0 to origin
