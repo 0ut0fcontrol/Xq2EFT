@@ -52,7 +52,7 @@ class EFT_calculator:
             loglist[i] = loglist[i].rstrip()
         i = 0
         for leaf, x in self.grid._gen_leaves_with_x():
-            leaf.y = self._parseQMlog(loglist[i])
+            leaf.y, coord = self._parseQMlog(loglist[i]) #coord is not using here
             i += 1
             if i >=len(loglist):break
 
@@ -89,7 +89,7 @@ class EFT_calculator:
         for grad in gradients[3:]:
             f += grad
             t += np.cross(grad - com1, grad)
-        return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]])
+        return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]]), coords
             
         
     # Evaluate the Xcom and q for a pair of mols by querying the grid
