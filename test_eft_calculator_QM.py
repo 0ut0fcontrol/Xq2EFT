@@ -93,6 +93,18 @@ def test_random_set(log_list):
     #    de, name = heapq.heappop(all)
     #    print -de, name
     # make a plot
+    with open('result_energy.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(e0,e1,e2):
+            f.write("%f %f %f\n"%i)
+    with open('result_force.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(fce0,fce1,fce2):
+            f.write("%f %f %f\n"%i)
+    with open('result_torque.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(trq0,trq1,trq2):
+            f.write("%f %f %f\n"%i)
     _, axarr = plt.subplots(2, 2,figsize=(8, 8))
     err = rmse(e0,e1)
     q = uqi(e0,e1)
