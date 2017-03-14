@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import numpy as np
 from time import time
@@ -10,7 +10,7 @@ import tools
 
 
 def load_coordinates(name):
-    lines = open('/Users/he/Work/rigid_water/qm/new_python/random/'+name).readlines()[-7:-1]
+    lines = open('test.dat/random/'+name).readlines()[-7:-1]
     coors = [[float(item) for item in line.split()[2:5]] for line in lines]
     return np.array(coors)
 
