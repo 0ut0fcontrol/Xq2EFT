@@ -86,9 +86,11 @@ class EFT_calculator:
         gradients = np.array(gradients)
         # from com => probe
         com1 = self.mol.getCOM(coords[3:])
-        for grad in gradients[3:]:
-            f += grad
-            t += np.cross(grad - com1, grad)
+        coord1 = coords[3:]
+        grad1 = gradients[3:]
+        for idx in range(len(grad1)):
+            f += grad1[idx]
+            t += np.cross(coord1[idx] - com1, grad1[idx])
         return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]]), coords
             
         
