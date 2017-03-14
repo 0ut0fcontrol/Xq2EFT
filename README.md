@@ -13,6 +13,7 @@ Get enegy, force and torque of pair of water or other fragment
 - `test_eft_calculator_QM.py` to test the QM grid and compare to MM
 
 ## Result of `test_eft_calculator_QM.py`
+The force and torque of force field seem to have problem.  
 ![fig](./QMvsInterpInQMgrid.png)
 
 ## Compare RMSE(RMSD) of datasets with different data points.   
