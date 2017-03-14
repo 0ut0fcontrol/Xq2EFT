@@ -4,7 +4,7 @@ import numpy as np
 from time import time
 import heapq
 from matplotlib import pyplot as plt
-
+from Q import uqi, rmse
 from eft_calculator import EFT_calculator, Water
 import tools
 
@@ -92,21 +92,36 @@ def test_random_set(log_list):
     #for i in range(3):
     #    de, name = heapq.heappop(all)
     #    print -de, name
-
     # make a plot
-    _, axarr = plt.subplots(2, 2)
-    p = np.corrcoef(e0, e1)[0, 1]
-    print "Energy: p =", p
-    axarr[0].scatter(e0, e1)
-    axarr[0].text(0, 0, 'p=%.4f'%p)
-    p = np.corrcoef(fce0, fce1)[0, 1]
-    print "Force: p =", p
-    axarr[1].scatter(fce0, fce1)
-    axarr[1].text(0, 0, 'p=%.4f'%p)
-    p = np.corrcoef(trq0, trq1)[0, 1]
-    print "Torque: p =", p
-    axarr[2].scatter(trq0, trq1)
-    axarr[2].text(0, 0, 'p=%.4f'%p)
+    _, axarr = plt.subplots(2, 2,figsize=(8, 8))
+    err = rmse(e0,e1)
+    q = uqi(e0,e1)
+    axarr[0,0].scatter(e0, e1,c='blue')
+    axarr[0,0].set_xlabel('qE:rmse=%.4f,uqi=%.4f'%(err,q))
+    axarr[0,0].xaxis.set_label_position('top') 
+
+    err = rmse(e0,e2)
+    q = uqi(e0,e2)
+    axarr[0,1].scatter(e0, e1,c='blue')
+    axarr[0,1].scatter(e0, e2,c='red')
+    axarr[0,1].set_xlabel('mmE(red):rmse=%.4f, uqi=%.4f'%(err,q))
+    axarr[0,1].xaxis.set_label_position('top') 
+    
+    err1 = rmse(fce0,fce1)
+    q1 = uqi(fce0,fce1)
+    err2 = rmse(fce0,fce2)
+    q2 = uqi(fce0,fce2)
+    axarr[1,0].scatter(fce0, fce1,c='blue')
+    axarr[1,0].scatter(fce0, fce2,c='red')
+    axarr[1,0].set_xlabel('qF:rmse=%.4f, uqi=%.4f\nmmF:rmse=%.4f, uqi=%.4f'%(err1,q1,err2,q2))
+    
+    err1 = rmse(trq0,trq1)
+    q1 = uqi(trq0,trq1)
+    err2 = rmse(trq0,trq2)
+    q2 = uqi(trq0,trq2)
+    axarr[1,1].scatter(trq0, trq1,c='blue')
+    axarr[1,1].scatter(trq0, trq2,c='red')
+    axarr[1,1].set_xlabel('qT:rmse=%.4f, uqi=%.4f\nmmT:rmse=%.4f, uqi=%.4f'%(err1,q1,err2,q2))
     plt.savefig('corr.png')
 
 
@@ -115,7 +130,7 @@ if __name__ == '__main__':
     calculator = EFT_calculator(order)
     t0 = time()
     cc = Classical_calculator()
-    #calculator.setup('grid_data.txt')
+    #acalculator.setup('grid_data.txt')
     calculator.setup('grid.dat')
     #calculator.fill_grid(cc)
     t1 = time()
