@@ -72,8 +72,8 @@ def test_random_set(log_list):
         fce0 += list(eft[1:4])
         trq0 += list(eft[4:7])
         # convert atomic coor to r, phi, theta... 
-        X0, q0 = calculator.mol.atomic2Xq(coors[:3])
-        X1, q1 = calculator.mol.atomic2Xq(coors[3:])
+        X0, q0 = calculator.mol.atomic2Xq(coors[3:])
+        X1, q1 = calculator.mol.atomic2Xq(coors[:3])
         # evaluate with calculator
         eft = calculator.eval(X0, q0, X1, q1)
         e1.append(eft[0])
