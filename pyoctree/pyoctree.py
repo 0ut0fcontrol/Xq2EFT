@@ -1,5 +1,5 @@
 # python Octree v.1
-
+# http://code.activestate.com/recipes/498121
 # UPDATED:
 # Is now more like a true octree (ie: partitions space containing objects)
 
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     Start = time.time()
     for x in range(NUM_TEST_OBJECTS):
         name = "Node__" + str(x)
-        pos = (random.randrange(-12.000, 12.000), random.randrange(-12, 12.00), random.randrange(-12.00, 12.00))
+        pos = (random.uniform(-12.000, 12.000), random.uniform(-12, 12.00), random.uniform(-12.00, 12.00))
         testOb = TestObject(name, pos)
         myTree.insertNode(myTree.root, 12.000, myTree.root, testOb)
     End = time.time() - Start
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     # Look up some random positions and time it
     Start = time.time()
     for x in range(NUM_COLLISION_LOOKUPS):
-        pos = (random.randrange(-12.000, 12.000), random.randrange(-12.00, 12.00), random.randrange(-12.00, 12.00))
+        pos = (random.uniform(-12.000, 12.000), random.uniform(-12.00, 12.00), random.uniform(-12.00, 12.00))
         result = myTree.findPosition(myTree.root, pos)
         
         ##################################################################################
