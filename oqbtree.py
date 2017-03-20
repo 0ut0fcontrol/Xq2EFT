@@ -12,16 +12,22 @@ DIRLOOKUP = {"3":0, "2":1, "-2":2, "-1":3, "1":4, "0":5, "-4":6, "-3":7}
 
 #### End Globals ####
 
+class conf:
+    def __init__(self, node_idx, weight, value):
+        self.idx = node_idx
+        self.weight = weight
+        self.value = value
+
 class Node:
     """Node.
 
     """
     def __init__(self, centre, size, leaf_num, node_idx):
-        self.root = root
+        self.error = 100.0
         self.centre = centre
         self.size = size
         self.isLeafNode = True
-        self.idx = idx
+        self.idx = node_idx
         self.data = data
         self.leaf_num = leaf_num
         # children store region
@@ -31,21 +37,69 @@ class Node:
         # neighbor store neighbor for iterpolation  in this region.
         self.dict = {}
 
-def Bitree:
+class Bitree:
     """Bittree
 
     """
-    def __init__(self, centre, size, node_idx):
-        self.root = self.addNode(math.pi, math.pi/2.0, node_idx)
-        self.size = size
+    def __init__(self, centre, size=math.pi * 2, node_idx):
+        self.root = Node(centre, size, leaf_num=2, node_idx)
+        self.root.idx = self.root.idx + 'N'
+        self.root.grids.append(conf(self.root.idx+'C1',self.centre - size/2.0, 0.0))
+        self.root.grids.append(conf(self.root.idx+'C0',self.centre, 0.0))
+        self.root.grids.append(conf(self.root.idx+'C1',self.centre + size/2, 0.0))
     
-    def addNode(self, centre, size, node_idx):
-        new_node = Node(centre,size,leaf_num = 2, node_idx)
-    
-    def insertNode(self, root, size, node_idx, parent):
-        if root == None:
-            centre = parent.centre
-            offset = size / 2
+    def subdivideNode(self, parent):
+        parent.isLeafNode = False
+        _offset = parent.size/4.0
+        _centre = (parent.centre - _offset, parent.centre + _offset )
+        for i in ddrange(2):
+            parent.children.append(Node(_centre[i], self.size/2.0, 2, self.idx+str(i)))
+        left = parent.children[0]
+        left.grids.append(parent.grids[0])
+        left.grids.append(conf(left.idx + 'C0', left.centre, 0.0))
+        left.grids.append(parent.grids[1])
+        right = parent.children[1]
+        right.grids.append(parent.grids[1])
+        right.grids.append(conf(left.idx + 'C0', right.centre, 0.0))
+        right.grids.append(parent.grids[2])
+    def findNeighbors(self, node, value):
+        _neighbor = None
+        if node == None:
+            return None  
+        elif node.isLeafNode:
+            _neighbor = (node.grids[0], node.grids[2])
+            return _neighbor
+        else:
+            child = self.findChild(node, value)
+            return findNeighbors(node.children[child],value)
+            
+    def findChild(self, node, value):
+        _centre = node.centre
+        child_idx = None
+        if value < _centre: 
+            child_idx = 0
+        else:
+            child_idx = 1
+        return  child_idx
+
+    def iterateConf(self,node)
+        confs = {}
+        for conf in self._iterateConf_help(node):
+            if conf.idx not in confs:
+                confs[conf.idx] = conf
+        return confs
+        
+    def _iterateConf_help(self, node):
+        """iterate all conf, not unique
+
+        """
+        for conf in node.grids:yield conf
+        for child in node.children:
+            for c in self._iterateConf_help(child):
+                yield c
+        
+class QuadTree
+            
             
 
 
