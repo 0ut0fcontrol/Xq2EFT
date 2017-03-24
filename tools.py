@@ -110,3 +110,26 @@ def spherical2q(phi1, phi2, theta):
     q3 = np.cos(phi1) * np.cos(phi2) * np.cos(theta)
     return np.array([q0, q1, q2, q3])
 
+def vet2ang(x, y):
+    """get the angle of 2 vector
+
+    """
+    lx = np.sqrt(np.dot(x,x))
+    ly = np.sqrt(np.dot(y,y))
+    cos_angle = np.dot(x,y)/(lx * ly)
+    angle = np.arccos(cos_angle)
+    return angle
+
+def sphere_triang_area(OA,OB,OC, r = 1):
+    """get area of spherical triangle from 3 vectors (O point to surface).
+
+    """
+    a = vet2ang(OB,OC)
+    b = vet2ang(OA,OC)
+    c = vet2ang(OA,OB)
+    cosA = (np.cos(a) - np.cos(b)*np.cos(c))/(np.sin(b)*np.sin(c))
+    cosB = (np.cos(b) - np.cos(a)*np.cos(c))/(np.sin(a)*np.sin(c))
+    cosC = (np.cos(c) - np.cos(b)*np.cos(a))/(np.sin(b)*np.sin(a))
+    E = np.arccos(cosA) + np.arccos(cosB) + np.arccos(cosC) - np.pi
+    return (E * r**2)
+    

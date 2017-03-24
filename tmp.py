@@ -1,3 +1,4 @@
+import math
 import numpy as np
 """A Hierarchical Adaptive Meshmesh indexing tranlation and rotation space.
 
@@ -40,21 +41,17 @@ class Bitree:
     """Bittree
 
     """
-    def __init__(self,node_idx, centre, size=np.pi * 2, direction):
-        self.direct = direction
+    def __init__(self,node_idx, centre, size=math.pi * 2,):
         self.root = Node(node_idx, centre, size, leaf_num=2)
         self.root.grids.append(conf(node_idx+'C1',self.centre - size/2.0, 0.0))
         self.root.grids.append(conf(node_idx+'C0',self.centre, 0.0))
         self.root.grids.append(conf(node_idx+'C1',self.centre + size/2, 0.0))
-        self.nodes = {}
-        self.grids = {}
-        self.iterateGrid()
-        self.iterateNode()
+    
     def subdivideNode(self, parent):
         parent.isLeafNode = False
         _offset = parent.size/4.0
         _centre = (parent.centre - _offset, parent.centre + _offset )
-        for i in range(2):
+        for i in ddrange(2):
             parent.children.append(Node(parent.idx+str(i),_centre[i], self.size/2.0, 2))
         left = parent.children[0]
         left.grids.append(parent.grids[0])
@@ -64,39 +61,7 @@ class Bitree:
         right.grids.append(parent.grids[1])
         right.grids.append(conf(left.idx + 'C0', right.centre, 0.0))
         right.grids.append(parent.grids[2])
-    
-    def fill(self, conf_idx, value):
-        """fill conf after generation 
-        """
-        if conf_idx in self.grids:
-            self.grids[conf_idx].value = value
-        else:
-            addNode(conf_idx)
-            if conf_idx in self.grids:
-                self.grids[conf_idx].value = value
-            else:
-                raise Exception("Con't fill conf %s\n"%(conf_idx))
-
-    def addNode(self,node_idx):
-        node_idx = node_idx.split('C')[0]
-        pre_idx, idxs = node_idx.split('N')
-        pre_idx += 'N' 
-        for i in idxs:
-            pre_idx +=  + str(i)
-            if pre_idx not in self.nodes:
-                self.subdivideNode(self.nodes[pre_idx[:-1]])
-                self.iterateNode()
-
-    def interpolation(self, angle):
-        neighbors = self.findNeighbors(self.root, angle)
-        v1 = neighbors[0].value
-        v2 = neighbors[1].value
-        w1 = angle - neighbors[0].weight
-        w2 = neighbors[1].weight -angle
-        value = (v1 * w1 + v2 * w2)/(w1 + w2)
-        return value
-
-    def findNeighbors(self, node, angle):
+    def findNeighbors(self, node, value):
         _neighbor = None
         if node == None:
             return None  
@@ -104,39 +69,34 @@ class Bitree:
             _neighbor = (node.grids[0], node.grids[2])
             return _neighbor
         else:
-            child = self.findChild(node, angle)
-            return findNeighbors(node.children[child],angle)
+            child = self.findChild(node, value)
+            return findNeighbors(node.children[child],value)
             
-    def findChild(self, node, angle):
+    def findChild(self, node, value):
+        _centre = node.centre
         child_idx = None
-        if angle < node.centre: 
+        if value < _centre: 
             child_idx = 0
         else:
             child_idx = 1
         return  child_idx
 
-    def iterateGrid(self):
-        for conf in self._iterateGrid_help(self.root):
-            if conf.idx not in self.grids:
-                self.grids[conf.idx] = conf
+    def iterateConf(self,node)
+        confs = {}
+        for conf in self._iterateConf_help(node):
+            if conf.idx not in confs:
+                confs[conf.idx] = conf
+        return confs
         
-    def _iterateGrid_help(self, node):
+    def _iterateConf_help(self, node):
         """iterate all conf, not unique
 
         """
         for conf in node.grids:yield conf
         for child in node.children:
-            for c in self._iterateGrid_help(child):
+            for c in self._iterateConf_help(child):
                 yield c
-
-    def iterateNode(self):
-        for n in self._iterateNode_help(self.root):
-            self.nodes[n.idx] = n
-
-    def _iterateNode_help(self, node):
-        yield node
-        for child in node.children:
-            yield child
+        
             
 class Quadtree:
     """QuadTree to index sphere
@@ -149,48 +109,17 @@ class Quadtree:
         grid order is like '4', triangles child is anti o' clock from (1,1,1)
         """
         self.com = com
-        self.idx = node_idx
-        self.root = Node(node_ndx, centre=com, size = 4*np.pi, leaf_num= 8)
-        _directs = np.array([[0., 0., 1.], #North
-                            [1., 0., 0.],[0., 1., 0.],[-1., 0., 0.],[0.,-1.,0.], # equator
-                            [0., 0., -1.0] # South
-                            ])
-        for i in range(6):
-            self.root.grids.append(Bitree(node_ndx + 'N%d'%(i), centre = 0.0, size=np.pi, directs[i]))
-        self.nodes = {}
-        self.grids = {}
-        self.iterateGrid()
-        self.iterateNode()
-
-        _grid_idx = [ [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1], 
-                      [5, 1, 2], [5, 2, 3], [5, 3, 4], [5, 4, 1]
-                    ]
-
-        for i in range(8):
-            #three grids id in vertex A, B , C
-            A, B, C = _grid_idx[i]
-            idx = self.idx + str(i)
-            centre = _directs[A] + _directs[B] + _directs[C]
-            centre /= np.linalg.norm(centre)
-            area = self._sphere_triang_area(_directs[A], _directs[B], _directs[C])
-            child = Node(idx, centre, area, leaf_num=4)
-            for key, item in self.grids.items()
-            
-            self.root.children[i] = child
-        
-        self.nodes = {}
-        self.grids = {}
-        self.iterateGrid()
-        self.iterateNode()
-                
+        self.root = Node(node_ndx, centre=0, size=, leaf_num= 8)
+        self.root.grids.append(Bitree(node_ndx + 'N0',self.centre - size/2.0, 0.0))
+        self.root.grids.append(conf(self.root.idx+'C0',self.centre, 0.0))
+        self.root.grids.append(conf(self.root.idx+'C1',self.centre + size/2, 0.0))
+    
     def subdivideNode(self, parent):
         parent.isLeafNode = False
-        diret = []
-        for i in parent.grids:
-            
-        _centre = (parent.grids[])
-        for i in ddrange(4):
-            parent.children.append(Node(parent.idx+str(i),_centre[i], self.size/2.0, 2))
+        _offset = parent.size/4.0
+        _centre = (parent.centre - _offset, parent.centre + _offset )
+        for i in ddrange(2):
+            parent.children.append(Node(_centre[i], self.size/2.0, 2, self.idx+str(i)))
         left = parent.children[0]
         left.grids.append(parent.grids[0])
         left.grids.append(conf(left.idx + 'C0', left.centre, 0.0))
@@ -199,39 +128,7 @@ class Quadtree:
         right.grids.append(parent.grids[1])
         right.grids.append(conf(left.idx + 'C0', right.centre, 0.0))
         right.grids.append(parent.grids[2])
-    
-    def fill(self, conf_idx, value):
-        """fill conf after generation 
-        """
-        if conf_idx in self.grids:
-            grids[conf_idx].value = value
-        else:
-            addNode(conf_idx)
-            if conf_idx in self.grids:
-                self.grids[conf_idx].value = value
-            else:
-                raise Exception("Con't fill conf %s\n"%(conf_idx))
-
-    def addNode(self,node_idx):
-        node_idx = node_idx.split('C')[0]
-        pre_idx, idxs = node_idx.split('N')
-        pre_idx += 'N' 
-        for i in idxs:
-            pre_idx +=  + str(i)
-            if pre_idx not in self.nodes:
-                self.subdivideNode(self.nodes[pre_idx[:-1]])
-                self.iterateNode()
-
-    def interpolation(self, angle):
-        neighbors = self.findNeighbors(self.root, angle)
-        v1 = neighbors[0].value
-        v2 = neighbors[1].value
-        w1 = angle - neighbors[0].weight
-        w2 = neighbors[1].weight -angle
-        value = (v1 * w1 + v2 * w2)/(w1 + w2)
-        return value
-
-    def findNeighbors(self, node, angle):
+    def findNeighbors(self, node, value):
         _neighbor = None
         if node == None:
             return None  
@@ -239,61 +136,34 @@ class Quadtree:
             _neighbor = (node.grids[0], node.grids[2])
             return _neighbor
         else:
-            child = self.findChild(node, angle)
-            return findNeighbors(node.children[child],angle)
+            child = self.findChild(node, value)
+            return findNeighbors(node.children[child],value)
             
-    def findChild(self, node, angle):
+    def findChild(self, node, value):
+        _centre = node.centre
         child_idx = None
-        if angle < node.centre: 
+        if value < _centre: 
             child_idx = 0
         else:
             child_idx = 1
         return  child_idx
 
-    def iterateGrid(self):
-        for conf in self._iterateGrid_help(self.root):
-            if conf.idx not in self.grids:
-                self.grids[conf.idx] = conf
+    def iterateConf(self,node)
+        confs = {}
+        for conf in self._iterateConf_help(node):
+            if conf.idx not in confs:
+                confs[conf.idx] = conf
+        return confs
         
-    def _iterateGrid_help(self, node):
+    def _iterateConf_help(self, node):
         """iterate all conf, not unique
 
         """
         for conf in node.grids:yield conf
         for child in node.children:
-            for c in self._iterateGrid_help(child):
+            for c in self._iterateConf_help(child):
                 yield c
-
-    def iterateNode(self):
-        for n in self._iterateNode_help(self.root):
-            self.nodes[n.idx] = n
-
-    def _iterateNode_help(self, node):
-        yield node
-        for child in node.children:
-            yield child
-    def _vet2ang(x, y):
-        """get the angle of 2 vector
-
-        """
-        lx = np.sqrt(np.dot(x,x))
-        ly = np.sqrt(np.dot(y,y))
-        cos_angle = np.dot(x,y)/(lx * ly)
-        angle = np.arccos(cos_angle)
-        return angle
-
-    def _sphere_triang_area(OA,OB,OC, r = 1):
-        """get area of spherical triangle from 3 vectors (O point to surface).
-
-        """
-        a = vet2ang(OB,OC)
-        b = vet2ang(OA,OC)
-        c = vet2ang(OA,OB)
-        cosA = (np.cos(a) - np.cos(b)*np.cos(c))/(np.sin(b)*np.sin(c))
-        cosB = (np.cos(b) - np.cos(a)*np.cos(c))/(np.sin(a)*np.sin(c))
-        cosC = (np.cos(c) - np.cos(b)*np.cos(a))/(np.sin(b)*np.sin(a))
-        E = np.arccos(cosA) + np.arccos(cosB) + np.arccos(cosC) - np.pi
-        return (E * r**2)
+            
 
 
 
