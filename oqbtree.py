@@ -151,44 +151,74 @@ class Quadtree:
         self.com = com
         self.idx = node_idx
         self.root = Node(node_ndx, centre=com, size = 4*np.pi, leaf_num= 8)
-        _directs = np.array([[0., 0., 1.], #North
-                            [1., 0., 0.],[0., 1., 0.],[-1., 0., 0.],[0.,-1.,0.], # equator
-                            [0., 0., -1.0] # South
-                            ])
+        self.root.directs = np.array([[0., 0., 1.], #North
+                                      [1., 0., 0.],[0., 1., 0.],[-1., 0., 0.],[0.,-1.,0.], # equator
+                                      [0., 0., -1.0] # South
+                                      ])
         for i in range(6):
-            self.root.grids.append(Bitree(node_ndx + 'N%d'%(i), centre = 0.0, size=np.pi, directs[i]))
+            self.root.grids.append(Bitree(node_ndx + 'N%d'%(i), centre = 0.0, 
+                                          size=np.pi, self.root.directs[i]))
         self.nodes = {}
         self.grids = {}
         self.iterateGrid()
         self.iterateNode()
-
         _grid_idx = [ [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1], 
                       [5, 1, 2], [5, 2, 3], [5, 3, 4], [5, 4, 1]
                     ]
-
         for i in range(8):
             #three grids id in vertex A, B , C
             A, B, C = _grid_idx[i]
             idx = self.idx + str(i)
-            centre = _directs[A] + _directs[B] + _directs[C]
+            directs = np.array([self.root.directs[A], self.root.directs[B], self.root.directs[C]])
+            centre = np.sum(directs, axis=0)
             centre /= np.linalg.norm(centre)
-            area = self._sphere_triang_area(_directs[A], _directs[B], _directs[C])
+            area = self._sphere_triang_area(directs[A], directs[B], directs[C])
             child = Node(idx, centre, area, leaf_num=4)
-            for key, item in self.grids.items()
-            
-            self.root.children[i] = child
-        
-        self.nodes = {}
-        self.grids = {}
+            Agrid = self.grepGrid(directs[A])
+            Bgrid = self.grepGrid(directs[B])
+            Cgrid = self.grepGrid(directs[C])
+            child.grids = [Agrid,Bgrid,Cgrid ]
+            child.directs = directs
+            self.root.children[i] = child 
+        self.root.isLeafNode = False
         self.iterateGrid()
         self.iterateNode()
                 
+    def grepGrid(self, vector):
+        """check if a grid(bitree) exists by distance of two vector
+        
+        """
+        for idx, grid in self.grids.items():
+            delta = np.linalg.norm(item.direct - vector)
+            if delta < 0.001:
+                return grid
+        retrun None
+
     def subdivideNode(self, parent):
         parent.isLeafNode = False
-        diret = []
-        for i in parent.grids:
-            
-        _centre = (parent.grids[])
+        grids = parent.grids
+        directs = parent.directs
+        directs = np.array([directs[0],directs[1],directs[2],
+                            directs[0] + directs[1],
+                            directs[1] + directs[2],
+                            directs[2] + directs[0]
+                            ])
+        #       0
+        #     3   5
+        #   1   4   2
+        for i in range(3,6):
+            grid = self.grepGrid(directs[i])
+            if not grid:
+                grid = Bitree(parent.idx + 'N%d'%(i), centre = 0.0, size=np.pi, directs[i])
+            grids.append(grid)
+        
+        _grid_idx = [ [0,3,5], [3,1,4], [5,4,2], [3,4,5]]
+        for i in range(4):
+            A,B,C = _grid_idx[1]
+            idx = parent.idx + str(i)
+            child_d
+            A    
+        
         for i in ddrange(4):
             parent.children.append(Node(parent.idx+str(i),_centre[i], self.size/2.0, 2))
         left = parent.children[0]
