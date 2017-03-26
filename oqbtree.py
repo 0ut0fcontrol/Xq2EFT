@@ -2,12 +2,25 @@ import numpy as np
 """A Hierarchical Adaptive Meshmesh indexing tranlation and rotation space.
 
 Combining octree (for indexing tranlation space) and quad-tree (for indexing sphere) to indexing all configurations of two rigid body.
+        ^
+       Z|1--+
+        |_______
+       /|      /|3-++
+      / | +++ / |
+     /__|___7/  |
+ +-+5|  |____|__|__Y__>
+     | /0--- | /2-+-
+     |/      |/
+     |_______|
+   X/4+--    6++-
+   v       
+   
+
 """
-MAX_OBJECTS_PER_CUBE = 10
 
 
 # This dictionary is used by the findBranch function, to return the correct branch index
-DIRLOOKUP = {'+++':0, '-++':1, '--+':2, '+-+':3, '++-':4, '-+-':5, '---':6, '+--':7}
+DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 #### End Globals ####
 
 class conf:
@@ -182,7 +195,8 @@ class Quadtree:
             Cgrid = self.grepGrid(directs[C])
             child.grids = [Agrid,Bgrid,Cgrid ]
             child.directs = directs
-            self.root.children[i] = child 
+            key = self.findChild(self.root, centre)
+            self.root.children[key] = child 
         self.root.isLeafNode = False
         self.iterateGrid()
         self.iterateNode()
@@ -288,7 +302,7 @@ class Quadtree:
 	else:
 	    # three middle point of triangle is the directs of 4 th children
 	    mids = node.children[3].directs
-	    solve = np.linalg.solve(mids,vector)
+	    solve = np.linalg.solve(mids.T, vector)
 	    if solve[0] < 0: return 2
 	    if solve[1] < 0: return 0
 	    if solve[2] < 0: return 1
@@ -341,50 +355,214 @@ class Quadtree:
 
 
 
+class Octree:
+    """QuadTree to index sphere
 
-
-class OctNode:
-    """OctNode store a cube space and its subspace.
-
-    Args:
-        centre(list): centre of cube
-        size(float): side length of cube
-        data(:obj:`list` | :obj:`tuple` | :obj:`str`, optional): some thing you want to save.
-    
-    Attributes:
-        neighbors(list): the grids in the vertexs of cube. there is quad-tree on every grid.
-        grids(list): the new gird in this node, for uniq loop.
-        branches(list): the childs of this node.
     """
-    def __init__(self, position, size, data=None):
-        """init OctNode.
+    def __init__(self, centre=(0.,0.,0.), size=12.0, symmetry=None):
+        """init octree by symmetry, and add 
+        
+        com is centre of mass.
+        node_idx will be like "T123R123N123C123"
+        T:translocation, R:rotation, R:normal, C:configuration
+        """
+        self.sym = symmetry #used by self.subdivideNode()
+        self.root = Node('T', centre=centre, size = 12.0, leaf_num= 8)
+        self.nodes = {}
+        self.grids = {}
+        self.iterateGrid()
+        self.iterateNode()
+        for i in range(8):
+            #three grids id in vertex A, B , C
+             A, B, C = _grid_idx[i]
+            idx = self.idx + str(i)
+            directs = np.array([self.root.directs[A], 
+	 			self.root.directs[B], 
+				self.root.directs[C]])
+            centre = np.sum(directs, axis=0)
+            centre /= np.linalg.norm(centre)
+            area = self._sphere_triang_area(directs[A], directs[B], directs[C])
+            child = Node(idx, centre, area, leaf_num=4)
+            Agrid = self.grepGrid(directs[A])
+            Bgrid = self.grepGrid(directs[B])
+            Cgrid = self.grepGrid(directs[C])
+            child.grids = [Agrid,Bgrid,Cgrid ]
+            child.directs = directs
+            key = self.findChild(self.root, centre)
+            self.root.children[key] = child 
+        self.root.isLeafNode = False
+        self.iterateGrid()
+         self.iterateNode()
+        
+    def grepGrid(self, vector):
+        """check if a grid(bitree) exists by distance of two vector
+        
+        """
+        for idx, grid in self.grids.items():
+            delta = np.linalg.norm(item.direct - vector)
+            if delta < 0.001:
+                return grid
+        retrun None
+    def _grid_positions(self,node,offset=None):
+        if offset=None:offset = node.size
+        offsets = np.array([[-offset,-offset,-offset],
+                            [-offset,-offset,+offset],
+                            [-offset,+offset,-offset],
+                            [-offset,+offset,+offset],
+                            [+offset,-offset,-offset],
+                            [+offset,-offset,+offset],
+                            [+offset,+offset,-offset],
+                            [+offset,+offset,+offset]
+                            ])
+        return node.centre + offsets
+
+    def _newCentre(self,node):
+        offset = node.size/2.0
+        return self._grid_positions(node,offset)
+        
+    def subdivideNode(self, parent):
+        parent.isLeafNode = False
+        newCentre = self._newCentre(parent)
+        grid_positions = self._grid_positions(parent)
+        for i in range(8):
+            child = Node(parent.idx + str(i), centre=newCentre[i], 
+                         size = parent.size/2.0, leaf_num= 8)
+            for j, pos in enumerate(self._grid_positions(child)):
+                grid = self.grepGrid(pos)
+                if not grid:
+                    grid = Quadtree(pos, parent.idx+'R%d'%(j))
+            parent.children.append()
+        for i in range(3,6):
+            grid = self.grepGrid(directs[i])
+            if not grid:
+                grid = Bitree(parent.idx + 'N%d'%(i), centre = 0.0, 
+			      size=np.pi, directs[i])
+            grids.append(grid)
+        
+        _grid_idx = [ [0,3,5], [3,1,4], [5,4,2], [3,4,5]]
+        for i in range(4):
+            A,B,C = _grid_idx[i]
+            idx = parent.idx + str(i)
+            child_directs = np.array([directs[A], directs[B], directs[C]])
+	    centre = np.sum(child_directs, axis=0)		
+	    centre /= np.linalg.norm(centre)
+            area = self._sphere_triang_area(directs[A], directs[B], directs[C])
+	    child = Node(idx, centre, area, leaf_num=4)
+	    child.directs = child_directs
+	    child.grids = [grids[A],grids[B],grids[C]]
+	    parent.children[di] = child
+	self.iterateGrid()
+	self.iterateNode()
+
+    def fill(self, conf_idx, value):
+        """fill conf after generation 
+        """
+	bitree_idx = conf_idx.split('N')[0]
+	if bitree_idx in self.grids:
+            self.grids[bitree_idx].fill(conf_idx, value)
+        else:
+            self.addNode(bitree_idx)
+            if bitree_idx in self.grids:
+		self.grids[bitree_idx].fill(conf_idx, value)
+            else:
+                raise Exception("Con't fill conf %s\n"%(conf_idx))
+
+    def addNode(self,node_idx):
+        node_idx = node_idx.split('N')[0]
+        pre_idx, idxs = node_idx.split('R')
+        pre_idx += 'R' 
+        for i in idxs:
+            pre_idx +=   str(i)
+            if pre_idx not in self.nodes:
+                self.subdivideNode(self.nodes[pre_idx[:-1]])
+                self.iterateNode()
+
+    def interpolation(self, vector, angle):
+        neighbors = self.findNeighbors(self.root, vector)
+        v1 = neighbors[0].interpolation(angle)
+        v2 = neighbors[1].interpolation(angle)
+        v3 = neighbors[2].interpolation(angle)
+        w1 = self._sphere_triang_area(neighbors[1].direct,neighbors[2].direct,vector)
+        w2 = self._sphere_triang_area(neighbors[0].direct,neighbors[2].direct,vector)
+        w3 = self._sphere_triang_area(neighbors[1].direct,neighbors[0].direct,vector)
+        value = (v1 * w1 + v2 * w2 + v3 * w3)/(w1 + w2 + w3)
+        return value
+
+    def findNeighbors(self, node, vector):
+        _neighbor = None
+        if node == None:
+            return None  
+        elif node.isLeafNode:
+            _neighbor = (node.grids[0], node.grids[1], node.grids[2])
+            return _neighbor
+        else:
+            child = self.findChild(node, vector)
+            return findNeighbors(node.children[child],vector)
+            
+    def findChild(self, node, vector):
+	if node is self.root:
+	    key = ''
+	    for i in range(3):
+		if vector[i] >= 0:
+		    key += '+'
+		else:
+		    key += '-'
+	    return DIRLOOKUP[key]
+	else:
+	    # three middle point of triangle is the directs of 4 th children
+	    mids = node.children[3].directs
+	    solve = np.linalg.solve(mids.T, vector)
+	    if solve[0] < 0: return 2
+	    if solve[1] < 0: return 0
+	    if solve[2] < 0: return 1
+	    return 3
+
+    def iterateGrid(self):
+        for conf in self._iterateGrid_help(self.root):
+            if conf.idx not in self.grids:
+                self.grids[conf.idx] = conf
+        
+    def _iterateGrid_help(self, node):
+        """iterate all conf, not unique
 
         """
-        self.centre = centre
-        self.size = size
+        for conf in node.grids:yield conf
+        for child in node.children:
+            for c in self._iterateGrid_help(child):
+                yield c 
 
-        # All OctNodes will be leaf nodes at first
-        # Then subdivided later as more objects get added
-        self.isLeafNode = True
+    def iterateNode(self):
+        for n in self._iterateNode_help(self.root):
+            self.nodes[n.idx] = n
 
-        # store our object, typically this will be one, but maybe more
-        self.data = data
-        
-        self.branches = [None, None, None, None, None, None, None, None]
-        
-    def grids(self):
-        x,y,z = self.centre
-        s = self.size
-        self._location = [[(x+s,y+s,z+s),None,None,None,None],
-                          [None,None,None,None,None],
-                          [None,None,None,None,None]]
-        def neighors
-        self.neighors = self.grids[ [self.grids[]],
-                                    [] ]
-        # The cube's bounding coordinates -- Not currently used
-        self.ldb = (position[0] - (size / 2), position[1] - (size / 2), position[2] - (size / 2))
-        self.ruf = (position[0] + (size / 2), position[1] + (size / 2), position[2] + (size / 2))
-        
+    def _iterateNode_help(self, node):
+        yield node
+        for child in node.children:
+            yield child
+    def _vet2ang(x, y):
+        """get the angle of 2 vector
+
+        """
+        lx = np.sqrt(np.dot(x,x))
+        ly = np.sqrt(np.dot(y,y))
+        cos_angle = np.dot(x,y)/(lx * ly)
+        angle = np.arccos(cos_angle)
+        return angle
+
+    def _sphere_triang_area(OA,OB,OC, r = 1):
+        """get area of spherical triangle from 3 vectors (O point to surface).
+
+        """
+        a = vet2ang(OB,OC)
+        b = vet2ang(OA,OC)
+        c = vet2ang(OA,OB)
+        cosA = (np.cos(a) - np.cos(b)*np.cos(c))/(np.sin(b)*np.sin(c))
+        cosB = (np.cos(b) - np.cos(a)*np.cos(c))/(np.sin(a)*np.sin(c))
+        cosC = (np.cos(c) - np.cos(b)*np.cos(a))/(np.sin(b)*np.sin(a))
+        E = np.arccos(cosA) + np.arccos(cosB) + np.arccos(cosC) - np.pi
+        return (E * r**2)
+
+
 
 
 class Octree:

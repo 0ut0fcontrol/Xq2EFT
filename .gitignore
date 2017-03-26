@@ -8,5 +8,5 @@ build
 __*
 #big data will save as .dat
 *.log
-*.swp
+.*.sw*
 *.dat
