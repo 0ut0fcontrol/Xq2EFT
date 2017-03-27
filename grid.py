@@ -265,7 +265,7 @@ class Grid:
     # Four points for 3rd order interpolation
     def _find_neighbors4(self, xs, my_x):
         n = len(xs)
-        if n <= 4:
+        if n < 4:
             return range(len(xs))
         i = 1
         while i < n:
@@ -275,9 +275,9 @@ class Grid:
         if i == n:
             raise Exception("x value out of range!")
         if i == 1:
-            return [0, 1, 2, 3]
+            return [0, 1, 2]
         if i == n-1:
-            return [n-4, n-3, n-2, n-1]
+            return [n-3, n-2, n-1]
         return [i-2, i-1, i, i+1]
 
     # Carries out 1D Lagrange interpolation
