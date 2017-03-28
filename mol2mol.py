@@ -66,10 +66,10 @@ ELEMENT = ['X','H','He','Li','Be','B','C','N','O','F','Ne',\
            'Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn']
 
 SpecialData = {'TotalCharge':0,
-		'Multiplicity':1,
-		'InputFileName':'',
-		'OutputFileName':'',
-		'Energy':0.0}
+                'Multiplicity':1,
+                'InputFileName':'',
+                'OutputFileName':'',
+                'Energy':0.0}
 
 def ReadXYZ(CoordFile):
     coordtemp = []
@@ -108,7 +108,7 @@ def ReadGJF(CoordFile):
         line = CoordFile.readline()
         if line[0] == '#': break
         if line == '':
-            print 'Error: wrong gjf or com format! \n',lineno()
+            print('Error: wrong gjf or com format! \n',lineno())
             coordtemp.append('Error')
     if not(len(coordtemp) == 0): return 2
     
@@ -123,8 +123,8 @@ def ReadGJF(CoordFile):
         if line.strip() == '': break
         line = line.split()
         if len(line)<4:
-            print "CAUTION: It seems that the .gjf file was writen in Z-Matrix format,"
-            print "        try to convert it to cartesian format.",lineno()
+            print("CAUTION: It seems that the .gjf file was writen in Z-Matrix format,")
+            print("        try to convert it to cartesian format.",lineno())
             return 3
         if len(line)>5: coordtemp.append([line[0], line[2], line[3], line[4]])
         else: coordtemp.append(line[:4])
@@ -141,7 +141,7 @@ def ReadINP(CoordFile):
     CoordFile.readline()    
     line = CoordFile.readline()
     if (len(line)<2) or (line.strip() != 'C1'):
-        print "Wrong .inp file format! This codes can only deal C1 symmetry!",lineno()
+        print("Wrong .inp file format! This codes can only deal C1 symmetry!",lineno())
         return 5
     
     while 1:
@@ -165,7 +165,7 @@ def ReadINPfull(CoordFile):
     CoordFile.readline()
     line = CoordFile.readline()
     if (len(line)<2) or (line.strip() != 'C1'):
-        print "Wrong .inp file format! This codes can only deal C1 symmetry!",lineno()
+        print("Wrong .inp file format! This codes can only deal C1 symmetry!",lineno())
         return 5
 
     while 1:
@@ -188,8 +188,8 @@ def ReadPDB(CoordFile):
                 #element = element.strip()
                 #if element=='HC' or element=='HO' or element=='HN': element = 'H'
                 #if ord(element[0])<58: element = element[1]
-		element = line[76:78]
-		element = element.strip()
+                element = line[76:78]
+                element = element.strip()
                 xx = line[30:38]
                 xx = xx.strip()
                 yy = line[38:46]
@@ -243,13 +243,13 @@ def ReadLOG(CoordFile):
     elif filetype == 'gau': coordtemp = ReadGAU(CoordFile)
     elif filetype == 'nw' : coordtemp = ReadNWChem(CoordFile)
     else: 
-        print 'Wrong log file format! Exit!',lineno()
+        print('Wrong log file format! Exit!',lineno())
         return 7
 
     return coordtemp
 
 def ReadGMS(CoordFile):
-    print '\nGamess file,',
+    print('\nGamess file,',)
     CoordFile.seek(0)
     coordtemp =[]
 
@@ -275,14 +275,14 @@ def ReadGMS(CoordFile):
 
     CoordFile.seek(0)
     if runtyp == 'OPTIMIZE':
-        print 'OPT job,',
+        print('OPT job,',)
         while 1:
             line = CoordFile.readline()
             if 'EQUILIBRIUM GEOMETRY LOCATED' in line:
-                print 'EQUILIBRIUM GEOMETRY LOCATED'
+                print('EQUILIBRIUM GEOMETRY LOCATED')
                 break
             if line=='':
-                print 'BUT equilibrium geometry NOT found! The last frame dumped.',lineno()
+                print('BUT equilibrium geometry NOT found! The last frame dumped.',lineno())
                 break
 
     # Begin read coord:
@@ -333,14 +333,14 @@ def ReadGMS(CoordFile):
 
 def ReadGAU(CoordFile):
     global SpecialData
-    print '\nGaussian job, end coordinations read.'
+    print('\nGaussian job, end coordinations read.')
     CoordFile.seek(0)
 
     runtyp = ''
     while 1:
         line = CoordFile.readline()
         if line=='':
-            raise Exception, "No coordinates found!"
+            raise Exception("No coordinates found!")
 
         if len(line)>2 and line[1]=='#':
             if 'opt' in line:
@@ -394,9 +394,9 @@ def ReadGAU(CoordFile):
                     break
 
     if StrangeElement:
-        print "\n###################################################################"
-        print "!!!Warning: There are special elements with no symbol assigned!!!"
-        print "###################################################################"
+        print("\n###################################################################")
+        print("!!!Warning: There are special elements with no symbol assigned!!!")
+        print("###################################################################")
 
     return coordtemp    
 
@@ -414,7 +414,7 @@ def ReadNWChem(CoordFile):
             break
 
     if runtyp == '':
-        print '\nNot an optimization job, exit.',lineno()
+        print('\nNot an optimization job, exit.',lineno())
         return 100
     else:
         IsOpted = False
@@ -524,7 +524,7 @@ def WriteGJF(file_h, coords):
     file_h.write("\n")
     return
     
-def WriteINP(file_h, coords):
+def WriteINP(file_h, coords,  GAMESS_Settings):
     file_h.write("! Gamess input file generated by mol2mol.\n")
     file_h.write(GAMESS_Settings)
     for atom in coords:
@@ -533,10 +533,10 @@ def WriteINP(file_h, coords):
             file_h.write("%8s" % ZCharge[atom[0].upper()])
         else:
             file_h.write("%8s" % "X")  # if the element is unknown print 'X'.
-            print "\n###################################################################"
-            print "!!!Warning: There are special elements with no atom No. assigned!!!"
-            print "###################################################################"
-        for ii in range(1,4): file_h.write("%15s" % atom[ii])
+            print("\n###################################################################")
+            print("!!!Warning: There are special elements with no atom No. assigned!!!")
+            print("###################################################################")
+        for ii in range(1,4): file_h.write("%15.10f" % atom[ii])
         file_h.write("\n")
     file_h.write(" $END\n")    
     return
@@ -599,17 +599,17 @@ def NW2GMS(file1,file2):
     while 1:
         line = file1.readline()
         if line == '':
-            print 'Error in reading file.',lineno()
+            print('Error in reading file.',lineno())
             sys.exit(1)
 
         if line.strip()=='NWChem Nuclear Hessian and Frequency Analysis':
             for ii in range(5): line = file1.readline()
 
             if 'Analytic' in line:
-                print '\nAnalytic Hessian Calculation.'
+                print('\nAnalytic Hessian Calculation.')
             elif 'Finite-difference' in line:
-                print '\nNumerical Hessian Calculation.'
-            else: print '\nUnknown Type Hessian Calculation :('
+                print('\nNumerical Hessian Calculation.')
+            else: print('\nUnknown Type Hessian Calculation :(')
 
             break
 
@@ -617,16 +617,16 @@ def NW2GMS(file1,file2):
     while 1:
         line = file1.readline()
         if line == '':
-            print '\nError in reading file. Line %d\n' % lineno()
+            print('\nError in reading file. Line %d\n' % lineno())
             sys.exit(1)
 
         if 'Total DFT energy =' in line:
-            print '\nDFT calculations.'
+            print('\nDFT calculations.')
             line = line.split()
             Energy = float(line[-1])
             break
         elif 'Total MP2 energy' in line:
-            print '\nMP2 calculations.'
+            print('\nMP2 calculations.')
             line = line.split()
             Energy = float(line[-1])
             break
@@ -635,7 +635,7 @@ def NW2GMS(file1,file2):
     while 1:
         line = file1.readline()
         if line == '':
-            print '\nError in reading file. Line %d\n' % lineno()
+            print('\nError in reading file. Line %d\n' % lineno())
             sys.exit(1)
 
         if 'Atom information' in line: break
