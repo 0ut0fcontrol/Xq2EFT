@@ -35,34 +35,32 @@ class Node:
     """Node.
 
     """
-    def __init__(self,node_idx, centre, size, leaf_num):
+    def __init__(self,node_idx=None, centre=None, size=None, leaf_num=None):
         self.error = 100.0
         self.centre = centre
         self.size = size
         self.isLeafNode = True
         self.idx = node_idx
-        self.data = data
         self.leaf_num = leaf_num
         # children store region
         self.children = [None for i in range(self.leaf_num)] # the branches should have order
         # grids store mesh grids
         self.grids = []
-        # neighbor store neighbor for iterpolation  in this region.
-        self.dict = {}
 
 class Bitree:
     """Bittree
 
     """
-    def __init__(self,node_idx, centre, size=np.pi * 2, position, direction):
+    def __init__(self, node_idx, centre, size, position, direction):
+        self.idx = node_idx
         self.position = position
         self.direct = direction
         self.root = Node(node_idx, centre, size, leaf_num=2)
-        self.root.grids.append(conf(node_idx+'C1',self.position, self.direct, self.centre - size/2.0, 0.0))
-        self.root.grids.append(conf(node_idx+'C0',self.position, self.direct, self.centre, 0.0))
-        self.root.grids.append(conf(node_idx+'C1',self.position, self.direct, self.centre + size/2, 0.0))
-        self.nodes = {}
-        self.grids = {}
+        self.root.grids.append(conf(node_idx+'C1',self.position, self.direct, centre - size/2.0, 0.0))
+        self.root.grids.append(conf(node_idx+'C0',self.position, self.direct, centre, 0.0))
+        self.root.grids.append(conf(node_idx+'C1',self.position, self.direct, centre + size/2, 0.0))
+        self.allnodes = {}
+        self.allgrids = {}
         self.iterateGrid()
         self.iterateNode()
     def subdivideNode(self, parent):
@@ -79,18 +77,18 @@ class Bitree:
         right.grids.append(parent.grids[1])
         right.grids.append(conf(left.idx + 'C0', self.position, self.direct, right.centre, 0.0))
         right.grids.append(parent.grids[2])
-	self.iterateGrid()
-	self.iterateNode()
+        self.iterateGrid()
+        self.iterateNode()
 
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
-        if conf_idx in self.grids:
-            self.grids[conf_idx].value = value
+        if conf_idx in self.allgrids:
+            self.allgrids[conf_idx].value = value
         else:
             self.addNode(conf_idx)
-            if conf_idx in self.grids:
-                self.grids[conf_idx].value = value
+            if conf_idx in self.allgrids:
+                self.allgrids[conf_idx].value = value
             else:
                 raise Exception("Con't fill conf %s\n"%(conf_idx))
 
@@ -100,9 +98,8 @@ class Bitree:
         pre_idx += 'N' 
         for i in idxs:
             pre_idx +=  str(i)
-            if pre_idx not in self.nodes:
-                self.subdivideNode(self.nodes[pre_idx[:-1]])
-                self.iterateNode()
+            if pre_idx not in self.allnodes:
+                self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
     def interpolation(self, angle):
         neighbors = self.findNeighbors(self.root, angle)
@@ -133,9 +130,10 @@ class Bitree:
         return  child_idx
 
     def iterateGrid(self):
+        self.allgrids = {}
         for conf in self._iterateGrid_help(self.root):
-            if conf.idx not in self.grids:
-                self.grids[conf.idx] = conf
+            if conf.idx not in self.allgrids:
+                self.allgrids[conf.idx] = conf
         
     def _iterateGrid_help(self, node):
         """iterate all conf, not unique
@@ -144,18 +142,21 @@ class Bitree:
         for conf in node.grids:
             if conf != None:yield conf
         for child in node.children:
+            if child == None:continue
             for c in self._iterateGrid_help(child):
                 yield c 
 
     def iterateNode(self):
-        for n in self._iterateNode_hel p(self.root):
-            if n.idx not in self.nodes:
-                self.nodes[n.idx] = n
+        self.allnodes = {}
+        for n in self._iterateNode_help(self.root):
+            if n.idx not in self.allnodes:
+                self.allnodes[n.idx] = n
 
     def _iterateNode_help(self, node):
         if node != None:
             yield node 
         for child in node.children:
+            if child == None: continue
             for n in self._iterateNode_help(child):
                 yield  n
             
@@ -171,16 +172,16 @@ class Quadtree:
         """
         self.position = com
         self.idx = node_idx
-        self.root = Node(node_ndx, centre=com, size = 4*np.pi, leaf_num= 8)
+        self.root = Node(node_idx, centre=com, size = 4*np.pi, leaf_num= 8)
         self.root.directs = np.array([[0., 0., 1.], #North
                                       [1., 0., 0.],[0., 1., 0.],[-1., 0., 0.],[0.,-1.,0.], # equator
                                       [0., 0., -1.0] # South
-                                      ])
+                                       ])
         for i in range(6):
-            self.root.grids.append(Bitree(node_ndx + 'N%d'%(i), centre = 0.0, 
-                                          size=np.pi, self.position, self.root.directs[i]))
-        self.nodes = {}
-        self.grids = {}
+            self.root.grids.append(Bitree(node_idx + 'N%d'%(i), 0.0, np.pi, 
+                                          self.position, self.root.directs[i]))
+        self.allnodes = {}
+        self.allgrids = {}
         self.iterateGrid()
         self.iterateNode()
         _grid_idx = [ [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 1], 
@@ -191,15 +192,15 @@ class Quadtree:
             A, B, C = _grid_idx[i]
             idx = self.idx + str(i)
             directs = np.array([self.root.directs[A], 
-				self.root.directs[B], 
-				self.root.directs[C]])
+                self.root.directs[B], 
+                self.root.directs[C]])
             centre = np.sum(directs, axis=0)
             centre /= np.linalg.norm(centre)
-            area = self._sphere_triang_area(directs[A], directs[B], directs[C])
+            area = self._sphere_triang_area(directs[0], directs[1], directs[2])
             child = Node(idx, centre, area, leaf_num=4)
-            Agrid = self.grepGrid(directs[A])
-            Bgrid = self.grepGrid(directs[B])
-            Cgrid = self.grepGrid(directs[C])
+            Agrid = self.grepGrid(directs[0])
+            Bgrid = self.grepGrid(directs[1])
+            Cgrid = self.grepGrid(directs[2])
             child.grids = [Agrid,Bgrid,Cgrid ]
             child.directs = directs
             key = self.findChild(self.root, centre)
@@ -212,11 +213,11 @@ class Quadtree:
         """check if a grid(bitree) exists by distance of two vector
         
         """
-        for idx, grid in self.grids.items():
-            delta = np.linalg.norm(item.direct - vector)
+        for grid in self.allgrids.values():
+            delta = np.linalg.norm(grid.direct - vector)
             if delta < 0.001:
                 return grid
-        retrun None
+        return None
 
     def subdivideNode(self, parent):
         parent.isLeafNode = False
@@ -233,8 +234,8 @@ class Quadtree:
         for i in range(3,6):
             grid = self.grepGrid(directs[i])
             if not grid:
-                grid = Bitree(parent.idx + 'N%d'%(i), centre = 0.0, 
-			      size=np.pi, self.position, directs[i])
+                grid = Bitree(parent.idx + 'N%d'%(i), 0.0, np.pi, 
+                              self.position, directs[i])
             grids.append(grid)
         
         _grid_idx = [ [0,3,5], [3,1,4], [5,4,2], [3,4,5]]
@@ -242,26 +243,26 @@ class Quadtree:
             A,B,C = _grid_idx[i]
             idx = parent.idx + str(i)
             child_directs = np.array([directs[A], directs[B], directs[C]])
-	    centre = np.sum(child_directs, axis=0)		
-	    centre /= np.linalg.norm(centre)
+            centre = np.sum(child_directs, axis=0)        
+            centre /= np.linalg.norm(centre)
             area = self._sphere_triang_area(directs[A], directs[B], directs[C])
-	    child = Node(idx, centre, area, leaf_num=4)
-	    child.directs = child_directs
-	    child.grids = [grids[A],grids[B],grids[C]]
-	    parent.children[i] = child
-	self.iterateGrid()
-	self.iterateNode()
+            child = Node(idx, centre, area, leaf_num=4)
+            child.directs = child_directs
+            child.grids = [grids[A],grids[B],grids[C]]
+            parent.children[i] = child
+        self.iterateGrid()
+        self.iterateNode()
 
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
-	grid_idx = conf_idx.split('C')[0]
-	if grid_idx in self.grids:
-            self.grids[grid_idx].fill(conf_idx, value)
+        grid_idx = conf_idx.split('C')[0]
+        if grid_idx in self.allgrids:
+            self.allgrids[grid_idx].fill(conf_idx, value)
         else:
             self.addNode(grid_idx)
-            if grid_idx in self.grids:
-		self.nodes[grid_idx].fill(conf_idx, value)
+            if grid_idx in self.allgrids:
+                self.allgrids[grid_idx].fill(conf_idx, value)
             else:
                 raise Exception("Con't fill conf %s\n"%(conf_idx))
 
@@ -271,12 +272,11 @@ class Quadtree:
         pre_idx += 'R' 
         for i in idxs:
             pre_idx +=   str(i)
-            if pre_idx not in self.nodes:
-                self.subdivideNode(self.nodes[pre_idx[:-1]])
-                self.iterateNode()
+            if pre_idx not in self.allnodes:
+                self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
     def interpolation(self, vector, angle):
-        neighbors = self.fi ndNeighbors(self.root, vector)
+        neighbors = self.findNeighbors(self.root, vector)
         v1 = neighbors[0].interpolation(angle)
         v2 = neighbors[1].interpolation(angle)
         v3 = neighbors[2].interpolation(angle)
@@ -298,27 +298,28 @@ class Quadtree:
             return findNeighbors(node.children[child],vector)
             
     def findChild(self, node, vector):
-	if node is self.root:
-	    key = ''
-	    for i in range(3):
-		if vector[i] >= 0:
-		    key += '+'
-		else:
-		    key += '-'
-	    return DIRLOOKUP[key]
-	else:
-	    # three middle point of triangle is the directs of 4 th children
-	    mids = node.children[3].directs
-	    solve = np.linalg.solve(mids.T, vector)
-	    if solve[0] < 0: return 2
-	    if solve[1] < 0: return 0
-	    if solve[2] < 0: return 1
-	    return 3
+        if node is self.root:
+            key = ''
+            for i in range(3):
+                if vector[i] >= 0:
+                    key += '+'
+                else:
+                    key += '-'
+            return DIRLOOKUP[key]
+        else:
+            # three middle point of triangle is the directs of 4 th children
+            mids = node.children[3].directs
+            solve = np.linalg.solve(mids.T, vector)
+            if solve[0] < 0: return 2
+            if solve[1] < 0: return 0
+            if solve[2] < 0: return 1
+            return 3
 
     def iterateGrid(self):
+        self.allgrids = {}
         for conf in self._iterateGrid_help(self.root):
-            if conf.idx not in self.grids:
-                self.grids[conf.idx] = conf
+            if conf.idx not in self.allgrids:
+                self.allgrids[conf.idx] = conf
         
     def _iterateGrid_help(self, node):
         """iterate all conf, not unique
@@ -327,22 +328,25 @@ class Quadtree:
         for conf in node.grids:
             if conf != None:yield conf
         for child in node.children:
+            if child == None: continue
             for c in self._iterateGrid_help(child):
                 yield c 
 
     def iterateNode(self):
-        for n in self._iterateNode_hel p(self.root):
-            if n.idx not in self.nodes:
-                self.nodes[n.idx] = n
+        self.allnodes = {}
+        for n in self._iterateNode_help(self.root):
+            if n.idx not in self.allnodes:
+                self.allnodes[n.idx] = n
 
     def _iterateNode_help(self, node):
         if node != None:
             yield node 
         for child in node.children:
+            if child == None: continue
             for n in self._iterateNode_help(child):
                 yield  n
     
-    def _vet2ang(x, y):
+    def _vet2ang(self, x, y):
         """get the angle of 2 vector
 
         """
@@ -352,13 +356,13 @@ class Quadtree:
         angle = np.arccos(cos_angle)
         return angle
 
-    def _sphere_triang_area(OA,OB,OC, r = 1):
+    def _sphere_triang_area(self, OA,OB,OC, r = 1):
         """get area of spherical triangle from 3 vectors (O point to surface).
 
         """
-        a = vet2ang(OB,OC)
-        b = vet2ang(OA,OC)
-        c = vet2ang(OA,OB)
+        a = self._vet2ang(OB,OC)
+        b = self._vet2ang(OA,OC)
+        c = self._vet2ang(OA,OB)
         cosA = (np.cos(a) - np.cos(b)*np.cos(c))/(np.sin(b)*np.sin(c))
         cosB = (np.cos(b) - np.cos(a)*np.cos(c))/(np.sin(a)*np.sin(c))
         cosC = (np.cos(c) - np.cos(b)*np.cos(a))/(np.sin(b)*np.sin(a))
@@ -378,14 +382,14 @@ class Octree:
         node_idx will be like "T123R123N123C123"
         T:translocation, R:rotation, R:normal, C:configuration
         """
-        self.nodes = {}
-        self.grids = {}
+        self.allnodes = {}
+        self.allgrids = {}
         self.sym = symmetry #used by self.subdivideNode()
         self.root = Node('T', centre=centre, size = 12.0, leaf_num= 8)
         self.subdivideNode(self.root)
         if self.sym == 1:
             for key,i in DIRLOOKUP.items():
-                if key[2]='-':
+                if key[2]=='-':
                     self.root.children[i]=None
         elif self.sym == 2:
             for key,i in DIRLOOKUP.items():
@@ -399,8 +403,6 @@ class Octree:
             if self.sym != None:
                 raise Exception("translation symmetry has only 1,2 and 3.")
         #regeneration nodes and grids list for deleting Node.
-        self.nodes = {} 
-        self.grids = {}
         self.iterateGrid()
         self.iterateNode()
         
@@ -408,14 +410,14 @@ class Octree:
         """check if a grid(bitree) exists by distance of two vector
         
         """
-        for idx, grid in self.grids.items():
-            delta = np.linalg.norm(item.direct - vector)
+        for grid in self.allgrids.values():
+            delta = np.linalg.norm(grid.position - vector)
             if delta < 0.001:
                 return grid
-        retrun None
+        return None
 
     def _grid_positions(self,node,offset=None):
-        if offset=None:offset = node.size
+        if offset==None:offset = node.size
         offsets = np.array([[-offset,-offset,-offset],
                             [-offset,-offset,+offset],
                             [-offset,+offset,-offset],
@@ -429,33 +431,34 @@ class Octree:
 
     def _newCentre(self,node):
         offset = node.size/2.0
-         return self._grid_positions(node,offset)
+        return self._grid_positions(node,offset)
         
     def subdivideNode(self, parent):
         parent.isLeafNode = False
         newCentre = self._newCentre(parent)
         grid_positions = self._grid_positions(parent)
         for i in range(8):
-             child = Node(parent.idx + str(i), centre=newCentre[i], 
+            child = Node(parent.idx + str(i), centre=newCentre[i], 
                          size = parent.size/2.0, leaf_num= 8)
             for j, pos in enumerate(self._grid_positions(child)):
-                 grid = self.grepGrid(pos)
+                grid = self.grepGrid(pos)
                 if not grid:
                     grid = Quadtree(pos, child.idx+'R%d'%(j))
+                child.grids.append(grid)
             parent.children[i] = child
-	self.iterateGrid()
-	self.iterateNode()
+        self.iterateGrid()
+        self.iterateNode()
 
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
-	grid_idx = conf_idx.split('N')[0]
-	if grid_idx in self.grids:
-            self.grids[grid_idx].fill(conf_idx, value)
+        grid_idx = conf_idx.split('N')[0]
+        if grid_idx in self.allgrids:
+            self.allgrids[grid_idx].fill(conf_idx, value)
         else:
             self.addNode(grid_idx)
-            if grid_idx in self.grids:
-		self.grids[grid_idx].fill(conf_idx, value)
+            if grid_idx in self.allgrids:
+                self.allgrids[grid_idx].fill(conf_idx, value)
             else:
                 raise  Exception("Con't fill conf %s\n"%(conf_idx))
 
@@ -465,9 +468,8 @@ class Octree:
         pre_idx += 'T' 
         for i in idxs:
             pre_idx += str(i)
-            if pre_idx not in self.nodes:
-                self.subdivideNode(self.nodes[pre_idx[:-1]])
-                self.i terateNode()
+            if pre_idx not in self.allnodes:
+                self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
     def interpolation(self, position, vector, angle):
         neighbors = self.findNeighbors(self.root, position)
@@ -496,49 +498,47 @@ class Octree:
             return findNeighbors(node.children[child],vector)
             
     def findChild(self, node, vector):
-	key = ''
-	for i in range(3):
-	    if vector[i] >= node.centre[i]:
-		key += '+'
-	    else:
-		key += '-'
-	return DIRLOOKUP[key]
+        key = ''
+        for i in range(3):
+            if vector[i] >= node.centre[i]:
+                key += '+'
+            else:
+                key += '-'
+        return DIRLOOKUP[key]
 
     def iterateGrid(self):
+        self.allgrids = {}
         for conf in self._iterateGrid_help(self.root):
-            if conf.idx not in self.grids:
-                self.g rids[conf.idx] = conf
+            if conf.idx not in self.allgrids:
+                self.allgrids[conf.idx] = conf
         
     def _iterateGrid_help(self, node):
         """iterate all conf, not unique
 
         """
         for conf in node.grids:
-            if conf != None:yield conf
+            if conf != None:
+                yield conf
+                #print(conf.idx,conf)
         for child in node.children:
+            if child == None:continue
             for c in self._iterateGrid_help(child):
                 yield c  
 
     def iterateNode(self):
-        for n in self._iterateNode_hel p(self.root):
-            self.nodes[n .idx] = n
+        self.allnodes = {}
+        for n in self._iterateNode_help(self.root):
+            if n.idx not in self.allnodes:
+                self.allnodes[n.idx] = n
 
     def _iterateNode_help(self, node):
         if node != None:
             yield node 
         for child in node.children:
+            if child == None:continue
             for n in self._iterateNode_help(child):
                 yield  n 
 
-    def _vet2ang(x, y):
-        """get the  angle of 2 vector
-
-        """
-        lx = np.sqrt(np.dot(x,x))
-        ly = np.sqrt(np.dot(y,y))
-        cos_angle = np.dot(x,y)/(lx * ly)
-        angle = np.arccos(cos_angle)
-        return angle 
 
 ## ---------------------------------------------------------------------------------------------------##
 class Grid:
@@ -572,71 +572,12 @@ class Grid:
             yield (conf.position, conf.vector, conf.angle)
     
     def _iter_conf(self):
-        for quadtree in self.mesh.grids.values():
-            for bitree in quadtree.grids.values():
-                for conf in bitree.grids.values():
+        for quadtree in self.mesh.allgrids.values():
+            for bitree in quadtree.allgrids.values():
+                for conf in bitree.allgrids.values():
                     yield conf
     
             
         
 if __name__ == "__main__":
-
-    ### Object Insertion Test ###
-    
-    # So lets test the adding:
-    import random
-    import time
-
-    #Dummy object class to test with
-    class TestObject:
-        def __init__(self, name, position):
-            self.name = name
-            self.position = position
-
-    # Create a new octree, size of world
-    myTree = Octree(40.0000)
-
-    # Number of objects we intend to add.
-    NUM_TEST_OBJECTS = 2000
-
-    # Number of collisions we're going to test
-    NUM_COLLISION_LOOKUPS = 2000
-
-    # Insert some random objects and time it
-    Start = time.time()
-    for x in range(NUM_TEST_OBJECTS):
-        name = "Node__" + str(x)
-        pos = (random.uniform(-12.000, 12.000), random.uniform(-12, 12.00), random.uniform(-12.00, 12.00))
-        testOb = TestObject(name, pos)
-        myTree.insertNode(myTree.root, 12.000, myTree.root, testOb)
-    End = time.time() - Start
-
-    # print some results.
-    print str(NUM_TEST_OBJECTS) + "-Node Tree Generated in " + str(End) + " Seconds"
-    print "Tree Leaves contain a maximum of " + str(MAX_OBJECTS_PER_CUBE) + " objects each."
-
-    ### Lookup Tests ###
-
-    # Look up some random positions and time it
-    Start = time.time()
-    for x in range(NUM_COLLISION_LOOKUPS):
-        pos = (random.uniform(-12.000, 12.000), random.uniform(-12.00, 12.00), random.uniform(-12.00, 12.00))
-        result = myTree.findPosition(myTree.root, pos)
-        
-        ##################################################################################
-        # This proves that results are being returned - but may result in a large printout
-        # I'd just comment it out and trust me :)
-        # print "Results for test at: " + str(pos)
-        # if result != None:
-        #    for i in result:
-        #        print i.name, i.position,
-        # print
-        ##################################################################################
-        
-    End = time.time() - Start
-
-    # print some results.
-    print str(NUM_COLLISION_LOOKUPS) + " Collision Lookups performed in " + str(End) + " Seconds"
-    print "Tree Leaves contain a maximum of " + str(MAX_OBJECTS_PER_CUBE) + " objects each."
-
-    x = raw_input("Press any key (Wheres the any key?):")
+    pass
