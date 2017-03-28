@@ -110,6 +110,37 @@ def spherical2q(phi1, phi2, theta):
     q3 = np.cos(phi1) * np.cos(phi2) * np.cos(theta)
     return np.array([q0, q1, q2, q3])
 
+def q2hopf(q):
+    q0, q1, q2, q3 = q
+    # (theta,phi,psi) 
+    # theta: angle of xy, 
+    # phi: angle of x,
+    # psi: angle of norm
+    psi = np.arctan2(q1, q0) # only a half of psi
+    phi = np.arctan2(q3, q2) - psi
+    theta = np.arccos(q0/np.cos(psi))
+    psi = psi * 2
+    x = np.cos(theta) * np.cos(phi)
+    y = np.cos(theta) * np.sin(phi)
+    z = np.sin(theta)
+    return (np.array(x,y,z), psi)
+
+def hopf2q(vector, angle):
+    # Hopf Coordinates for SO(3)
+    # ref: Generating Uniform Incremental Grids on SO(3) Using the Hopf Fibration
+    x, y, z = vector
+    theta = np.arccos(z)
+    phi = np.arctan2(y, x)
+    psi = angle 
+    cosTheta = np.cos(theta/2.0)
+    sinTheta = np.sin(theta/2.0)
+
+    q0 = cosTheta * np.cos(psi/2.0)
+    q1 = cosTheta * np.sin(psi/2.0)
+    q2 = sinTheta * np.cos(phi + psi/2.0)
+    q3 = sinTheta * np.sin(phi + psi/2.0) 
+    return np.array([q0, q1, q2, q3])
+
 def vet2ang(x, y):
     """get the angle of 2 vector
 
