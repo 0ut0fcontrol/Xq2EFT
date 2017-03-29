@@ -111,25 +111,38 @@ def spherical2q(phi1, phi2, theta):
     return np.array([q0, q1, q2, q3])
 
 def q2hopf(q):
-    q0, q1, q2, q3 = q
-    # (theta,phi,psi) 
-    # theta: angle of xy, 
+    """convert quaternion to hopf coordinate
+
+    hopf coordinate = 2-spherical + circle
+    2-spherical in spherical coordinate system:(r=1,theta[0, pi),phi[-pi, pi))
+    2-spherical in cartesian coordinate system:x, y ,z
+    circle in angele: psi[-pi,pi)
+    # see Spherical coordinate system
+    #(https://en.wikipedia.org/wiki/Spherical_coordinate_system)
+
+    # theta: angle of z, 
     # phi: angle of x,
     # psi: angle of norm
+    """
+    q0, q1, q2, q3 = q
     psi = np.arctan2(q1, q0) # only a half of psi
     phi = np.arctan2(q3, q2) - psi
-    theta = np.arccos(q0/np.cos(psi))
+    theta = np.arccos(          (q0+q1)
+                      / (np.cos(psi)+np.sin(psi)) # avoid the zero point
+                     ) * 2
+
     psi = psi * 2
-    x = np.cos(theta) * np.cos(phi)
-    y = np.cos(theta) * np.sin(phi)
-    z = np.sin(theta)
-    return (np.array(x,y,z), psi)
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+    return (np.array([x,y,z]), psi)
 
 def hopf2q(vector, angle):
     # Hopf Coordinates for SO(3)
     # ref: Generating Uniform Incremental Grids on SO(3) Using the Hopf Fibration
     x, y, z = vector
-    theta = np.arccos(z)
+    r = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arccos(z/r)
     phi = np.arctan2(y, x)
     psi = angle 
     cosTheta = np.cos(theta/2.0)
