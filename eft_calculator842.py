@@ -29,17 +29,20 @@ class EFT_calculator:
 
     # Setup the grid structure. If provided with a data file, load it
     def setup(self, filename=None):
-        self.grid.load(filename) 
+        if filename != None:
+            self.grid.load(filename) 
 
     # Given a calculator that evalulates the atomic coordinates of a pair,
     # use the results to fill the grid
     def fill_grid(self, calculator, filename='grid_data.txt'):
-        def f(x):
-            coor = self._hopf2Atomic(x)
+        def f(pos,axis,ang):
+            coor = self._hopf2Atomic(pos,axis,ang)
             return calculator.eval(coor)
-        if not self.grid.n:
-            raise Exception('setup() before fill')
-        self.grid.fill(f)
+        for conf in self.grid._iter_conf(): 
+            try:
+                self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
+            except Exception:
+                print(conf.idx,conf.position,conf.vector, conf.angle)
         self.grid.save(filename)
 
     def fill_with_QM(self, logfilelist):
@@ -117,11 +120,9 @@ class EFT_calculator:
         if q[1] < 0:
             q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
         # convert X, q to polar coordinates
-        r, phi, theta = tools.xyz2spherical(X)
-        ophi1, ophi2, otheta = tools.q2spherical(q)
-        coor = [r, phi, theta, ophi1, ophi2, otheta]
+        axis, angle = tools.q2hopf(q)
         # use the grid to obtain results
-        eft = self.grid.interpolate(coor, self.order)
+        eft = self.grid.interpolate(X, axis, angle)
         ener = eft[0]
         force = eft[1:4]
         torque = eft[4:7]
