@@ -34,16 +34,16 @@ class EFT_calculator:
 
     # Given a calculator that evalulates the atomic coordinates of a pair,
     # use the results to fill the grid
-    def fill_grid(self, calculator, filename='grid_data.txt'):
+    def fill_grid(self, calculator, filename='mesh.dat'):
         def f(pos,axis,ang):
             coor = self._hopf2Atomic(pos,axis,ang)
             return calculator.eval(coor)
-        for conf in self.grid._iter_conf(): 
-            try:
-                self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
-            except Exception:
-                print(conf.idx,conf.position,conf.vector, conf.angle)
-        self.grid.save(filename)
+        self.grid.refine(f,self._hopf2PDB, err_cutoff=10.0, filename=filename)
+        #    try:
+        #        self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
+        #    except Exception:
+        #        print(conf.idx,conf.position,conf.vector, conf.angle)
+        #self.grid.save(filename)
 
     def fill_with_QM(self, logfilelist):
         """ input filename is a file with all gird GAMESS result log in order."""
@@ -153,15 +153,54 @@ class EFT_calculator:
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)
 
-
+    def _hopf2PDB(self, Xcom, vector, angle, NdxAtom=1,NdxRes=1):
+        c= self._hopf2Atomic(Xcom, vector, angle)
+        mol = 'Xcom= ' + '%8.3f'*3%tuple(Xcom) + 'Axis=' + '%8.3f'*3%tuple(vector) + "Angle=%8.3f\n"%(angle)
+        for i in range(self.mol.n1+self.mol.n2):
+            mol += "ATOM  %5d%3s%6s A%4d%12.3f%8.3f%8.3f  1.00  0.00\n" % (
+                NdxAtom, self.mol.ele[i], self.mol.frg, NdxRes,c[i][0],c[i][1],c[i][2])
+            if NdxAtom == self.mol.n1:NdxRes += 1
+            NdxAtom += 1
+        return mol
+            
+    def _Xq2PDB(self, Xcom, q, NdxAtom=1,NdxRes=1):
+        c = self.mol.Xq2Atomic(Xcom, q)
+        c = np.concatenate((self.mol.refCoor, c), axis=0)
+        mol = 'xcom= ' + '%8.3f'*3%tuple(Xcom) + ' axis=' + '%8.3f'*4%tuple(q) + '\n'
+        for i in range(self.mol.n1+self.mol.n2):
+            mol += "atom  %5d%3s%6s a%4d%12.3f%8.3f%8.3f  1.00  0.00\n" % (
+                NdxAtom, self.mol.ele[i], self.mol.frg, NdxRes,c[i][0],c[i][1],c[i][2])
+            if NdxAtom == self.mol.n1:NdxRes += 1
+            NdxAtom += 1
+        return mol
+        
+    def _AA2PDB(self, Xcom, Axis, angle, NdxAtom=1,NdxRes=1):
+        q = np.zeros(4)
+        q[3] = np.cos(angle/2.0)
+        q[0] = Axis[0]*np.sin(angle/2.0)
+        q[1] = Axis[1]*np.sin(angle/2.0)
+        q[2] = Axis[2]*np.sin(angle/2.0)
+        c = self.mol.Xq2Atomic(Xcom, q)
+        c = np.concatenate((self.mol.refCoor, c), axis=0)
+        mol = 'xcom= ' + '%8.3f'*3%tuple(Xcom) + ' axis=' + '%8.3f'*4%tuple(q) + '\n'
+        for i in range(self.mol.n1+self.mol.n2):
+            mol += "atom  %5d%3s%6s a%4d%12.3f%8.3f%8.3f  1.00  0.00\n" % (
+                NdxAtom, self.mol.ele[i], self.mol.frg, NdxRes,c[i][0],c[i][1],c[i][2])
+            if NdxAtom == self.mol.n1:NdxRes += 1
+            NdxAtom += 1
+        return mol
 # A class that holds information related to the atomic structure of a water
 # molecule. It also includes several methods that carries out operations 
 # related to the atomic coordinates.
 class Water:
     def __init__(self):
+        self.frg = "HOH"
+        self.n1 = 3
+        self.n2 = 3
+        self.ele = "OHHOHH"
         self.mass = np.array([15.99900, 1.00800, 1.00800])
         refCoor = np.array([ [-0.06556939,   0.00000000,    0.00000000],
-                             [0.52035943,    0.76114632,    0.00000000],
+                              [0.52035943,    0.76114632,    0.00000000],
                              [0.52035943,   -0.76114632,    0.00000000] ])
         # The following code ensures that refCoor has COM at origin and orientation
         # aligned with the getR() method

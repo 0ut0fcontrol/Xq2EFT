@@ -23,6 +23,7 @@ Combining octree (for indexing tranlation space) and quad-tree (for indexing sph
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 #### End Globals ####
 E_HIGH = 100.0
+DIST_CUTOFF = 2.5 ** 2
 HIGH = np.array([E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH])
 
 class conf:
@@ -99,16 +100,13 @@ class Bitree:
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
+        self.addNode(conf_idx)
         if conf_idx in self.allgrids:
             if conf_idx == self.root.idx + 'C0':
-                self.allgrids[self.root.idx + 'C1'].value = value
+                self.root.grids[1].value = value
             self.allgrids[conf_idx].value = value
         else:
-            self.addNode(conf_idx)
-            if conf_idx in self.allgrids:
-                self.allgrids[conf_idx].value = value
-            else:
-                raise Exception("Con't fill conf %s\n"%(conf_idx))
+            raise Exception("Con't fill conf %s\n"%(conf_idx))
 
     def addNode(self,node_idx):
         node_idx = node_idx.split('C')[0]
@@ -119,9 +117,9 @@ class Bitree:
             if pre_idx not in self.allnodes:
                 self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
-    def interpolation(self, angle, node=None):
+    def interpolation(self, angle, node=None, neighbors=None):
         if node is None: node = self.root
-        neighbors = self.findNeighbors(node, angle)
+        if neighbors is None:neighbors = self.findNeighbors(node, angle)
         v1 = neighbors[0].value
         v2 = neighbors[1].value
         w1 = angle - neighbors[0].angle
@@ -219,7 +217,7 @@ class Quadtree:
                 self.root.directs[C]])
             centre = np.sum(directs, axis=0)
             centre /= np.linalg.norm(centre)
-            area = self._sphere_triang_area(directs[0], directs[1], directs[2])
+            area = self._triang_area(directs[0], directs[1], directs[2])
             child = Node(idx, centre, area, leaf_num=4)
             child.parent = self.root
             Agrid = self.grepGrid(directs[0])
@@ -232,6 +230,8 @@ class Quadtree:
         self.root.isLeafNode = False
         self.iterateGrid()
         self.iterateNode()
+        for child in self.root.children:
+            self.subdivideNode(child)
                 
     def grepGrid(self, vector):
         """check if a grid(bitree) exists by distance of two vector
@@ -248,14 +248,15 @@ class Quadtree:
         grids = parent.grids
         directs = parent.directs
         directs = np.array([directs[0],directs[1],directs[2],
-                            directs[0] + directs[1],
+                            (directs[0] + directs[1]),
                             directs[1] + directs[2],
                             directs[2] + directs[0]
-                            ])
+                             ])
         #       0
         #     3   5
         #   1   4   2
         for i in range(3,6):
+            directs[i] = directs[i]/np.linalg.norm(directs[i])
             grid = self.grepGrid(directs[i])
             if not grid:
                 grid = Bitree(parent.idx + 'N%d'%(i), 0.0, np.pi, 
@@ -283,18 +284,15 @@ class Quadtree:
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
-        grid_idx = conf_idx.split('C')[0]
+        self.addNode(conf_idx)
+        grid_idx = conf_idx.split('N')[0] + 'N' + conf_idx.split('N')[1][0]
         if grid_idx in self.allgrids:
             self.allgrids[grid_idx].fill(conf_idx, value)
         else:
-            self.addNode(grid_idx)
-            if grid_idx in self.allgrids:
-                self.allgrids[grid_idx].fill(conf_idx, value)
-            else:
-                raise Exception("Con't fill conf %s\n"%(conf_idx))
+            raise Exception("Con't fill conf %s\n"%(conf_idx))
 
-    def addNode(self,node_idx):
-        node_idx = node_idx.split('N')[0]
+    def addNode(self, conf_idx):
+        node_idx = conf_idx.split('N')[0]
         pre_idx, idxs = node_idx.split('R')
         pre_idx += 'R' 
         for i in idxs:
@@ -302,15 +300,20 @@ class Quadtree:
             if pre_idx not in self.allnodes:
                 self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
-    def interpolation(self, vector, angle, node=None):
+    def interpolation(self, vector, angle, node=None, neighbors=None, sphere=False):
         if node is None: node = self.root
-        neighbors = self.findNeighbors(node, vector)
+        if neighbors is None:neighbors = self.findNeighbors(node, vector)
         v1 = neighbors[0].interpolation(angle)
         v2 = neighbors[1].interpolation(angle)
         v3 = neighbors[2].interpolation(angle)
-        w1 = self._sphere_triang_area(neighbors[1].direct,neighbors[2].direct,vector)
-        w2 = self._sphere_triang_area(neighbors[0].direct,neighbors[2].direct,vector)
-        w3 = self._sphere_triang_area(neighbors[1].direct,neighbors[0].direct,vector)
+        if sphere:
+            w1 = self._sphere_triang_area(neighbors[1].direct,neighbors[2].direct,vector)
+            w2 = self._sphere_triang_area(neighbors[0].direct,neighbors[2].direct,vector)
+            w3 = self._sphere_triang_area(neighbors[1].direct,neighbors[0].direct,vector)
+        else:
+            w1 = self._triang_area(neighbors[1].direct,neighbors[2].direct,vector)
+            w2 = self._triang_area(neighbors[0].direct,neighbors[2].direct,vector)
+            w3 = self._triang_area(neighbors[1].direct,neighbors[0].direct,vector)
         value = (v1 * w1 + v2 * w2 + v3 * w3)/(w1 + w2 + w3)
         return value
 
@@ -394,11 +397,18 @@ class Quadtree:
         a = self._vet2ang(OB,OC)
         b = self._vet2ang(OA,OC)
         c = self._vet2ang(OA,OB)
+        if a == 0.0 or b == 0.0 or c == 0.0:
+            return 0.0
         cosA = (np.cos(a) - np.cos(b)*np.cos(c))/(np.sin(b)*np.sin(c))
         cosB = (np.cos(b) - np.cos(a)*np.cos(c))/(np.sin(a)*np.sin(c))
         cosC = (np.cos(c) - np.cos(b)*np.cos(a))/(np.sin(b)*np.sin(a))
         E = np.arccos(cosA) + np.arccos(cosB) + np.arccos(cosC) - np.pi
         return (E * r**2)
+    def _triang_area(self, OA,OB,OC):
+        """treat sphere_triangle as triangle.
+
+        """
+        return 0.5 * np.linalg.norm( np.cross( OB-OA, OC-OA ) )
 
 
 
@@ -416,7 +426,7 @@ class Octree:
         self.allnodes = {}
         self.allgrids = {}
         self.sym = symmetry #used by self.subdivideNode()
-        self.root = Node('T', centre=centre, size = 12.0, leaf_num= 8)
+        self.root = Node('wtr_wtrT', centre=centre, size = 12.0, leaf_num= 8)
         self.subdivideNode(self.root)
         if self.sym == 1:
             for key,i in DIRLOOKUP.items():
@@ -434,12 +444,15 @@ class Octree:
             if self.sym != None:
                 raise Exception("translation symmetry has only 1,2 and 3.")
         #regeneration nodes and grids list for deleting Node.
-        print(self.root.children)
         self.iterateGrid()
         self.iterateNode()
+        for child in self.root.children:
+            if child != None:
+                self.subdivideNode(child)
         
     def grepGrid(self, vector):
         """check if a grid(bitree) exists by distance of two vector
+        print(self.root.children)
         
         """
         for grid in self.allgrids.values():
@@ -486,19 +499,12 @@ class Octree:
     def fill(self, conf_idx, value):
         """fill conf after generation 
         """
-        grid_idx = conf_idx.split('N')[0]
-        print(grid_idx)
-        print(self.allgrids)
+        self.addNode(conf_idx)
+        grid_idx = conf_idx.split('R')[0] + 'R' + conf_idx.split('R')[1][0]
         if grid_idx in self.allgrids:
-            import pdb
-            psb.set_track()
             self.allgrids[grid_idx].fill(conf_idx, value)
         else:
-            self.addNode(grid_idx)
-            if grid_idx in self.allgrids:
-                self.allgrids[grid_idx].fill(conf_idx, value)
-            else:
-                raise  Exception("Con't fill conf %s\n"%(conf_idx))
+            raise  Exception("Con't fill conf %s\n"%(conf_idx))
 
     def addNode(self,node_idx):
         node_idx = node_idx.split('R')[0]
@@ -509,9 +515,13 @@ class Octree:
             if pre_idx not in self.allnodes:
                 self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
-    def interpolation(self, position, vector, angle, node=None):
+    def interpolation(self, position, vector, angle, node=None, neighbors=None):
+        if np.dot(position, position) < DIST_CUTOFF:
+            return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+        if np.dot(position, position) >  144.0:
+            return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
         if node is None: node = self.root
-        neighbors = self.findNeighbors(node, position)
+        if neighbors is None: neighbors = self.findNeighbors(node, position)
         ndim = len(position)        
         v = np.zeros((8,ndim + 7))
         for i in range(8):
@@ -583,14 +593,208 @@ class Octree:
 
 
 ## ---------------------------------------------------------------------------------------------------##
+import copy
 class Grid:
     def __init__(self, centre=(0.,0.,0.), size=12.0, symmetry=None):
         self.mesh = Octree(centre=(0.,0.,0.), size=12.0, symmetry=symmetry)
-    
+        self.confs = set()
+        self.confs.update(self._iter_conf())
     def fill(self, conf_idx, value):
         self.mesh.fill(conf_idx, value)
     
+    def refine(self, f, hopf2PDB, err_cutoff=1.0, filename='mesh.dat'):
+        self.database_name = filename # set global filename for self.save
+        self.angle_refine_count = 0
+        self.axis_refine_count = 0
+        self.pos_refine_count = 0
+        self.max_err_conf = None
+        self.hopf2PDB = hopf2PDB
+        self.fill_with_f(f)
+        self._refine_pos(f,err_cutoff)
+        self.database_name = None
+    
+    def fill_with_f(self, f, confs = None,filename='mesh.dat'):
+        n = len(self.confs)
+        n_count = 1
+        if confs is None: confs = self.confs
+        for conf in confs:
+            if n%1000 == 1:
+                print('-'*8 + "filling %10d/%d"%(n_count,n)+'-'*8)
+            n_count += 1
+            if np.dot(conf.position, conf.position) < DIST_CUTOFF: # 2.0**2
+                self.fill(conf.idx, 
+                    np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0]))
+            elif np.dot(conf.position, conf.position) >  144.0: # 12**2
+                self.fill(conf.idx, np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0]))
+            else:
+                self.fill(conf.idx, 
+                    f(conf.position,conf.vector, conf.angle))
+        self.save(confs)
+    
+
+    def _refine_pos(self,f,err_cutoff=1.0):
+        oldconfs = copy.copy(self.confs)
+        fine = False
+        while not fine:
+            print("%d th time position refinement"%(self.pos_refine_count))
+            self.pos_refine_count += 1
+            fine = True
+            for leaf in self.octLeafNodes():
+                node = leaf.parent
+                tree = leaf.tree
+                node_err = 0
+                testgrids = set()
+                for quadtree in node.testgrid:
+                    for bitree in quadtree.allgrids.values():
+                        for conf in bitree.allgrids.values():
+                            testgrids.add(conf)
+                for g in testgrids:
+                    dist2 = np.dot(g.position, g.position)
+                    if (np.abs(dist2 - DIST_CUTOFF) <= 2 * node.size**2 
+                        and node.size <= 1.0): 
+                        print("Escaped the cutoff boundary.\n")
+                        node.error = 0.0
+                        break
+                    g_iterp = tree.interpolation(g.position, g.vector, g.angle, node=node, neighbors=node.grids)
+                    err = np.abs(g_iterp - g.value)
+                    err = err[0]
+                    if err > node_err:
+                        node_err = err
+                        self.max_err_conf = g
+                if node_err < node.error: node.error = node_err
+                if node.error > err_cutoff:
+                    if node.children[0].isLeafNode:
+                        printStr=("max  error  is %5.2f\n"%(node.error)+
+                                   "conf:%15s"%(self.max_err_conf.idx)+
+                                  " %5.2f"*3%tuple(self.max_err_conf.position)+
+                                  " %5.2f"*3%tuple(self.max_err_conf.vector) +
+                                  " %5.2f"%(self.max_err_conf.angle) +
+                                  '\n' +
+                                  "size of node %6.3f\n"%(node.size) +
+                                  "conf values is " +
+                                  " %5.2f"*7%tuple(self.max_err_conf.value)
+                                  ) 
+                        print(printStr)
+                    for child in node.children:
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
+                            fine  = False 
+            self.confs.update(self._iter_conf())
+            newconfs = self.confs.difference(oldconfs)
+            print("total %15d confs, %15d new confs\n"%(len(self.confs),len(newconfs)))
+            oldconfs = copy.copy(self.confs)
+            if len(newconfs) > 0:
+                self.fill_with_f(f,newconfs)
+            self._refine_axis(f,err_cutoff=err_cutoff)
+
+    def _refine_axis(self,f,err_cutoff=1.0):
+        oldconfs = copy.copy(self.confs)
+        fine = False
+        while not fine:
+            print("%d th time axis refinement"%(self.axis_refine_count))
+            self.axis_refine_count += 1
+            fine = True
+            for leaf in self.quadLeafNodes():
+                node = leaf.parent
+                tree = leaf.tree
+                node_err = 0
+                testgrids = set()
+                for bitree in node.testgrid:
+                    for conf in bitree.allgrids.values():
+                        testgrids.add(conf)
+                for g in testgrids:
+                    if g.value[0]==100.0==g.value[1]:
+                        node.error = 0
+                        break
+                    if np.dot(g.position, g.position) < DIST_CUTOFF:
+                        g_iterp = np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+                        node.error = 0
+                        break
+                    else:
+                        g_iterp = tree.interpolation(g.vector, g.angle, 
+                                                     node, node.grids)
+                    err = np.abs(g_iterp - g.value)
+                    err = err[0]
+                    if err > node_err:
+                        node_err = err
+                        self.max_err_conf = g
+                if node.error == 0:continue
+                if node_err < node.error: node.error = node_err
+                if node.error > err_cutoff/2:
+                    if node.children[0].isLeafNode:
+                        printStr=("\nmax  error  is %5.2f\n"%(node.error)+
+                                   "conf:%15s"%(self.max_err_conf.idx)+
+                                  " %5.2f"*3%tuple(self.max_err_conf.position)+
+                                  " %5.2f"*3%tuple(self.max_err_conf.vector) +
+                                  " %5.2f"%(self.max_err_conf.angle) +
+                                  '\n' +
+                                  "area of node %6.3f/4*pi\n"%(node.size) +
+                                  "conf values is " +
+                                  " %5.2f"*7%tuple(self.max_err_conf.value)
+                                  )
+                        print(printStr)
+                        #with open(self.max_err_conf.idx+'.pdb','w') as f:
+                        #    f.write(self.hopf2PDB(self.max_err_conf.position,
+                        #                          self.max_err_conf.vector,
+                        #                          self.max_err_conf.angle))
+                    for child in node.children:
+                        if child.isLeafNode:
+                            tree. subdivideNode(child)
+                            fine = False 
+            self.confs.update(self._iter_conf())
+            newconfs = self.confs.difference(oldconfs)
+            print("total %15d confs, %15d new confs\n"%(len(self.confs),len(newconfs)))
+            oldconfs = copy.copy(self.confs)
+            if len(newconfs) > 0:
+                self.fill_with_f(f,newconfs)
+            self._refine_angle(f,err_cutoff=err_cutoff)
+
+
+    def _refine_angle(self,f,err_cutoff=1.0):
+        oldconfs = copy.copy(self.confs)
+        fine = False
+        while not fine:
+            print("%d th time angle refinement"%(self.angle_refine_count))
+            self.angle_refine_count += 1
+            fine = True
+            for leaf in self.biLeafNodes():
+                node = leaf.parent
+                tree = leaf.tree
+                node_err = 0
+                for g in node.testgrid:
+                    if g.value[0]==100.0==g.value[1]:
+                        node.error = 0
+                        break
+                    if np.dot(g.position, g.position) < DIST_CUTOFF:
+                        g_iterp = np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+                        node.error = 0
+                        break
+                    else:
+                        g_iterp = tree.interpolation(g.angle, node, node.grids)
+                    err = np.abs(g_iterp - g.value)
+                    err = err[0]
+                    if err > node_err:
+                        node_err = err
+                if node.error == 0:continue
+                if node_err < node.error: node.error = node_err
+                if node.error > err_cutoff/4:
+                    for child in node.children:
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
+                            fine =  False  
+            self.confs.update(self._iter_conf())
+            newconfs = self.confs.difference(oldconfs)
+            print("total %15d confs, %15d new confs\n"%(len(self.confs),len(newconfs)))
+            oldconfs = copy.copy(self.confs)
+            if len(newconfs) > 0:
+                self.fill_with_f(f,newconfs)
+        
+        
     def interpolate(self, position, vector, angle):
+        if np.dot(position, position) < DIST_CUTOFF:
+            return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+        if np.dot(position, position) >  144.0:
+            return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
         return self.mesh.interpolation(position, vector, angle)
 
     def load(self, filename):
@@ -603,9 +807,11 @@ class Grid:
                 value = np.array([float(v) for v in i[1:]])
                 self.mesh.fill(idx, value)
     
-    def save(self, filename):
-        with open(filename, 'w') as f:
-            for conf in self._iter_conf():
+    def save(self, confs=None, filename='mesh.dat'):
+        if confs is None:confs=self._iter_conf()
+        if self.database_name != None: filename = self.database_name
+        with open(filename, 'a') as f:
+            for conf in confs:
                 conf_str='%s'%(conf.idx) + ' %f'*7%tuple(conf.value) + '\n'
                 f.write(conf_str)
 
@@ -623,15 +829,18 @@ class Grid:
         for quadNode in self.quadLeafNodes():
             for bitree in quadNode.grids:
                 for n in bitree.leafNodes.values():
+                    n.tree = bitree
                     yield n
     def quadLeafNodes(self):
         for octNode in self.octLeafNodes():
             for quadtree in octNode.grids:
                 for n in quadtree.leafNodes.values():
+                    n.tree = quadtree
                     yield n
 
     def octLeafNodes(self):
         for n in self.mesh.leafNodes.values():
+            n.tree = self.mesh
             yield n
         
             

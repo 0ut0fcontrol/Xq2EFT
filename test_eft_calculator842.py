@@ -1,16 +1,16 @@
 #!/usr/bin/env python2
-
+import sys
 import numpy as np
 from time import time
 import heapq
 from matplotlib import pyplot as plt
-
+from Q import uqi, rmse
 from eft_calculator842 import EFT_calculator, Water
 import tools
 
 
 def load_coordinates(name):
-    lines = open('test.dat/random/'+name).readlines()[-7:-1]
+    lines = open('/Users/he/Work/rigid_water/qm/new_python/random/'+name).readlines()[-7:-1]
     coors = [[float(item) for item in line.split()[2:5]] for line in lines]
     return np.array(coors)
 
@@ -51,22 +51,24 @@ class Classical_calculator:
         force = fvdw + felec
         return ener, force
 
-def test_random_set():
+def test_random_set(log_list):
     e0 = []
     e1 = []
+    e2 = []
     fce0 = []
     fce1 = []
+    fce2 = []
     trq0 = []
     trq1 = []
-    all = []
+    trq2 = []
+    all  =  []
     t1 = time()
-    for i in range(2, 2000):
+    for name in open(log_list, "r").readlines():
         # load atomic coor 
-        name = 'test%04d.inp' % i
-        coors = load_coordinates(name)
-        # evaluate with analytical function
-        eft = cc.eval(coors)
-        e0.append(eft[0])
+        name = name.rstrip()
+        # QM value
+        eft, coors = calculator._parseQMlog(name)
+        e0.append(eft[0]) 
         fce0 += list(eft[1:4])
         trq0 += list(eft[4:7])
         # convert atomic coor to r, phi, theta... 
@@ -77,41 +79,76 @@ def test_random_set():
         e1.append(eft[0])
         fce1 += list(eft[1:4])
         trq1 += list(eft[4:7])
+        # evaluate with analytical function
+        eft = cc.eval(coors)
+        e2.append(eft[0])
+        fce2 += list(eft[1:4])
+        trq2 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))
         all.append((-np.linalg.norm(np.array(fce0) - np.array(fce1)), name))
     t2 = time()
-    print('took %.1f s to evaluate the random set' % (t2 - t1))
+    print('took %.1f s to evaluate the random set'% (t2 - t1))
     heapq.heapify(all)
     #for i in range(3):
     #    de, name = heapq.heappop(all)
     #    print -de, name
-
     # make a plot
-    _, axarr = plt.subplots(1, 3)
-    p = np.corrcoef(e0, e1)[0, 1]
-    print("Energy: p =%10.3f"%(p))
-    axarr[0].scatter(e0, e1)
-    axarr[0].text(0, 0, 'p=%.4f'%p)
-    p = np.corrcoef(fce0, fce1)[0, 1]
-    print("Force: p =%10.3f"%(p))
-    axarr[1].scatter(fce0, fce1)
-    axarr[1].text(0, 0, 'p=%.4f'%p)
-    p = np.corrcoef(trq0, trq1)[0, 1]
-    print("Torque: p =%10.3f"%(p))
-    axarr[2].scatter(trq0, trq1)
-    axarr[2].text(0, 0, 'p=%.4f'%p)
-    plt.savefig('corr.png')
+    with open('result_energy.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(e0,e1,e2):
+            f.write("%f %f %f\n"%i)
+    with open('result_force.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(fce0,fce1,fce2):
+            f.write("%f %f %f\n"%i)
+    with open('result_torque.txt',"w") as f:
+        f.write("#QM    interpInQMgrid400k    MM\n")
+        for i in zip(trq0,trq1,trq2):
+            f.write("%f %f %f\n"%i)
+    _, axarr = plt.subplots(2, 2,figsize=(8, 8))
+    err = rmse(e2,e1)
+    q = uqi(e2,e1)
+    axarr[0,0].scatter(e2, e1,c='blue')
+    axarr[0,0].set_xlabel('qE:rmse=%.4f,uqi=%.4f'%(err,q))
+    axarr[0,0].xaxis.set_label_position('top') 
+
+    err = rmse(e0,e2)
+    q = uqi(e0,e2)
+    axarr[0,1].scatter(e0, e1,c='blue')
+    axarr[0,1].scatter(e2, e1,c='red')
+    axarr[0,1].set_xlabel('mmE(red):rmse=%.4f, uqi=%.4f'%(err,q))
+    axarr[0,1].xaxis.set_label_position('top') 
+    
+    err1 = rmse(fce0,fce1)
+    q1 = uqi(fce0,fce1)
+    err2 = rmse(fce2,fce1)
+    q2 = uqi(fce2,fce1)
+    axarr[1,0].scatter(fce0, fce1,c='blue')
+    axarr[1,0].scatter(fce2, fce1,c='red')
+    axarr[1,0].set_xlabel('qF:rmse=%.4f, uqi=%.4f\nmmF:rmse=%.4f, uqi=%.4f'%(err1,q1,err2,q2))
+    
+    err1 = rmse(trq0,trq1)
+    q1 = uqi(trq0,trq1)
+    err2 = rmse(trq2,trq1)
+    q2 = uqi(trq2,trq1)
+    axarr[1,1].scatter(trq0, trq1,c='blue')
+    axarr[1,1].scatter(trq2, trq1,c='red')
+    axarr[1,1].set_xlabel('qT:rmse=%.4f, uqi=%.4f\nmmT:rmse=%.4f, uqi=%.4f'%(err1,q1,err2,q2))
+    #plt.savefig('corr.png')
+    plt.savefig(sys.argv[2])
 
 
 if __name__ == '__main__':
     order = 3
+    if len(sys.argv) <3:
+        raise Exception("Not enough args\n")
     calculator = EFT_calculator(order)
     t0 = time()
     cc = Classical_calculator()
-    #calculator.setup('grid_data.txt')
-    calculator.setup()
+    #acalculator.setup('grid_data.txt')
+    #calculator.setup('grid.dat')
     calculator.fill_grid(cc)
     t1 = time()
-    print('took %.1f s to fill the grid' % (t1 - t0))
-    test_random_set()
+    print('took %.1f s to fill the grid'%(t1 - t0))
+    test_random_set(sys.argv[1]) # a file with a list of location of QM .log file
 

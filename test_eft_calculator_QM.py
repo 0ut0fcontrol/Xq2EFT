@@ -143,8 +143,8 @@ if __name__ == '__main__':
     t0 = time()
     cc = Classical_calculator()
     #acalculator.setup('grid_data.txt')
-    calculator.setup('grid.dat')
-    #calculator.fill_grid(cc)
+    #calculator.setup('grid.dat')
+    calculator.fill_grid(cc)
     t1 = time()
     print 'took %.1f s to fill the grid' % (t1 - t0)
     test_random_set(sys.argv[1]) # a file with a list of location of QM .log file
