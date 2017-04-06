@@ -38,7 +38,7 @@ class EFT_calculator:
             return calculator.eval(coor)
         self.grid.refine(f, self._rq2PDB, err_cutoff, filename)
         print("refinement done")
-        self.grid.mesh.dumpDatabase(filename)
+        self.grid.dumpDatabase(filename)
         #    try:
         #        self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
         #    except Exception:
