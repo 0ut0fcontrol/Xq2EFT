@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 #import cPickle as pickle
 import pickle
-from mesh import Grid
+from mesh import mesh, AdaptMesh
 import tools
 
 
@@ -25,7 +25,8 @@ import tools
 class EFT_calculator:
     def __init__(self, filename=None):
         self.mol = Water()
-        self.grid = Grid()
+        #self.grid = mesh()
+        self.grid = AdaptMesh()
         if filename != None: 
             self.grid.updateDatabase(filename)
 
