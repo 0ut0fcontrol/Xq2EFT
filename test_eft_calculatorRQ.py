@@ -1,5 +1,4 @@
 #!/usr/bin/env python2
-
 import numpy as np
 from time import time
 import heapq
@@ -85,12 +84,14 @@ def test_random_set():
     #for i in range(3):
     #    de, name = heapq.heappop(all)
     #    print -de, name
+    """
     for i in range(len(e0)):
         if e1[i]> 100.0:
             e0[i] = e1[i] = 0.0
             for j in range(3):
                 fce0[i*3 +j ] = fce1[i*3+j] = trq0[i*3+j] = trq1[i*3+j] = 0.0
-    # make a plot
+   """
+   # make a plot
     _, axarr = plt.subplots(1, 3)
     p = np.corrcoef(e0, e1)[0, 1]
     print("Energy: p =", p)
@@ -111,17 +112,21 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("\n       Usage:#0 figname.png [datfilename.dat err_cutoff]\n")
         sys.exit()
-    figname = sys.argv[1]
+    figname = sys.argv[1] # a output fig name
+    databaseName = sys.argv[2]
+
     t0 = time()
     cc = Classical_calculator()
-    if len(sys.argv) == 3:
-        calculator = EFT_calculator(sys.argv[2])
-    elif len(sys.argv) == 4:
-        calculator = EFT_calculator()
-        calculator.fill_grid(cc, sys.argv[2], float(sys.argv[3])) #dataname and cutoff
-    #calculator.setup('grid_data.txt')
+    if os.path.exists(databaseName):
+        calculator = EFT_calculator(databaseName)
+        print("loaded a old database")
     else:
-        sys.exit(1)
+        calculator = EFT_calculator()
+        print("created a new mesh")
+    if len(sys.argv) == 4:
+        error_cutoff = float(sys.argv[3])
+        print("set cutoff as %f"%(error_cutoff))
+        calculator.fill_grid(cc, databaseName, error_cutoff)
     t1 = time()
     print('took %.1f s to fill the grid' % (t1 - t0))
     test_random_set()
