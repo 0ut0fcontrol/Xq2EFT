@@ -24,7 +24,8 @@ Combining octree (for indexing tranlation space) and quad-tree (for indexing sph
 # This dictionary is used by the findBranch function, to return the correct branch index
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 #### End Globals ####
-E_HIGH = 100.0
+#E_HIGH = 100.0
+E_HIGH = 0.0 # default value set as 0.0 maybe more retionable
 DIST_CUTOFF = 2.5 ** 2
 HIGH = np.array([E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH,E_HIGH])
 
@@ -465,8 +466,9 @@ class Grid:
             self.R_refine_count += 1
             fine = True
             for leaf in self.RLeafNodes():
-                if leaf.pos[0] <  3 and leaf.size[0] < 0.5: # r<2.5, r_szie = 0.25 
-                    continue
+                if leaf.error < self.E_CUTOFF: continue
+                # I want to restrict the density in very close
+                # if leaf.pos[0] <  3 and leaf.size[0] < 0.5: continue
                 node = leaf
                 tree = leaf.tree
                 node_err = 0
@@ -511,10 +513,11 @@ class Grid:
             self.Q_refine_count += 1
             fine = True
             for leaf in self.QLeafNodes():
+                if leaf.error < self.E_CUTOFF: continue
                 node = leaf
                 tree = leaf.tree
-                if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0: # r<2.5
-                    continue
+                # I want to restrict the density in very close
+                # if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
                 node_err = 0
                 testgrids = node.testgrid
                 #print(node.testgrid)
