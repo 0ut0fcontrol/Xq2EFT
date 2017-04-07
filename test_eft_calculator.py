@@ -4,7 +4,7 @@ from time import time
 import heapq
 from matplotlib import pyplot as plt
 import sys, os
-from eft_calculatorRQ import EFT_calculator, Water
+from eft_calculator import EFT_calculator, Water
 import tools
 
 
