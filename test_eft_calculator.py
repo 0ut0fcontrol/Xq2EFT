@@ -2,6 +2,8 @@
 import numpy as np
 from time import time
 import heapq
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import sys, os
 from eft_calculator import EFT_calculator, Water

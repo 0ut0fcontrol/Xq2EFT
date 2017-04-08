@@ -221,13 +221,15 @@ class Qtree(Octree):
         Octree.__init__(self, idx, pos, 16*3.14, 'C') #There 4 sphere in  root ^_^
         self.root.isLeafNode = False
         self.qDict = dict()
+        self.allgrids = set()
         self.leafNodes = set()
+        self.allnodes = set()
         for i in range(4):
             #if "wtr_wtrR23Q12" == self.idx + str(i):pdb.set_trace()
             child = Node(self.idx + '%d'%(i), np.array([0.,0.,0.]), 
                          np.array([np.pi/4., np.pi/4., np.pi/4.]), 8)
             self.leafNodes.add(child)
-            self.allnodes[child.idx] = child
+            self.allnodes.add(child)
             for j, pos_ndx in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
                 q = self._ndx2q(child.idx, pos_ndx)
@@ -236,7 +238,7 @@ class Qtree(Octree):
                     self.qDict[qstr] = conf(idx, self.pos, q)
                     # self.pos is translation space coord
                 grid = self.qDict[qstr]
-                self.allgrids[grid.idx] = grid
+                self.allgrids.add(grid)
                 grid.pos[idx] = pos_ndx
                 child.grids.append(grid)
             testidx = child.idx+'%d%s7'%(i, self.nID)
@@ -245,7 +247,7 @@ class Qtree(Octree):
             if qstr not in self.qDict:
                 self.qDict[qstr] = conf(testidx, self.pos, q)
             grid = self.qDict[qstr]
-            self.allgrids[grid.idx] = grid
+            self.allgrids.add(grid)
             child.testgrid.append(grid)
             child.parent = self.root
             self.root.children[i] =  child
@@ -285,7 +287,7 @@ class Qtree(Octree):
             child = Node(parent.idx + str(i), pos=newCentre[i], 
                          size = parent.size/2.0, leaf_num= 8)
             self.leafNodes.add(child)
-            self.allnodes[child.idx] = child
+            self.allnodes.add(child)
             for j, pos_ndx in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
                 q = self._ndx2q(child.idx, pos_ndx)
@@ -294,7 +296,7 @@ class Qtree(Octree):
                     self.qDict[qstr] = conf(idx, self.pos, q) 
                     # self.pos is translation space coord
                 grid = self.qDict[qstr]
-                self.allgrids[grid.idx]=grid
+                self.allgrids.add(grid)
                 grid.pos[idx] = pos_ndx
                 child.grids.append(grid)
             # add testgrid
@@ -304,7 +306,7 @@ class Qtree(Octree):
             if qstr not in self.qDict:
                 self.qDict[qstr] = conf(testidx, self.pos, q)
             grid = self.qDict[qstr]
-            self.allgrids[grid.idx] = grid
+            self.allgrids.add(grid)
             child.testgrid.append(grid)
             parent.children[i] = child
             child.parent = parent
@@ -499,7 +501,7 @@ class  mesh:
     def QLeafNodes(self):
         for RNode in self.RLeafNodes():
             for Qtree in RNode.grids:
-                for n in Qtree.leafNodes:
+                for n in Qtree.leafNodes.values():
                     n.tree = Qtree
                     yield n
 
