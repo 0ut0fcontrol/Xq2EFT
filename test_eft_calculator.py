@@ -118,11 +118,11 @@ if __name__ == '__main__':
     t0 = time()
     cc = Classical_calculator()
     if os.path.exists(databaseName):
-        calculator = EFT_calculator(databaseName)
         print("loaded a old database")
+        calculator = EFT_calculator(databaseName)
     else:
-        calculator = EFT_calculator()
         print("created a new mesh")
+        calculator = EFT_calculator()
     if len(sys.argv) == 4:
         error_cutoff = float(sys.argv[3])
         print("set cutoff as %f"%(error_cutoff))

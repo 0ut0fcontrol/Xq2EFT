@@ -18,6 +18,7 @@ from basicMesh import mesh
 import numpy as np
 import pdb
 import copy
+from time import time
 np.seterr(invalid='warn')
 
 class AdaptMesh(mesh):
@@ -104,7 +105,10 @@ class AdaptMesh(mesh):
                 testgrids = node.testgrid
                 #print(node.testgrid)
                 for g in testgrids:
+                    t0 = time()
                     g_iterp = tree.interpolation(g.q, node=node)
+                    t1 = time()
+                    print("time of interp is %.2fs"%(t1-t0))
                     err = np.abs(g_iterp - g.values)
                     err = err[0]
                     if err > node_err:
@@ -114,7 +118,7 @@ class AdaptMesh(mesh):
                 if node_err < node.error: node.error = node_err
                 if node.error > self.E_CUTOFF:
                     printStr=("\nmax  error  is %5.2f\n"%(node.error)+
-                               "conf:%15s"%(self.max_err_conf.idx)+
+                               "conf:%15s "%(self.max_err_conf.idx)+
                               " %5.2f"*3%tuple(self.max_err_conf.loc)+
                               " %5.2f"*4%tuple(self.max_err_conf.q) +
                               '\n' +
@@ -123,14 +127,23 @@ class AdaptMesh(mesh):
                               " %5.2f"*7%tuple(self.max_err_conf.values)
                                ) 
                     #rint(printStr)
+                    t0 = time()
                     tree. subdivideNode(node)
+                    t1 = time()
+                    print("time of subdivideNode is %.2fs"%(t1-t0))
                     fine = False 
+            t0 = time()
             self.confs.update(self._iter_conf())
+            t1 = time()
+            print("time of _iter_conf is %.2fs"%(t1-t0))
             newconfs = self.confs.difference(oldconfs)
             print("total %15d confs, %15d new confs\n"%(len(self.confs),len(newconfs)))
             oldconfs = copy.copy(self.confs)
             if len(newconfs) > 0:
+                t0 = time()
                 self.fill_with_f(self.f, newconfs)
+                t1 = time()
+                print("time of fill %d conf is %.2fs"%(len(newconfs), t1-t0))
         
 if __name__ == "__main__":
     pass

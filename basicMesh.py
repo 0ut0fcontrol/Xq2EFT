@@ -117,6 +117,9 @@ class Octree:
              if grid_idx not in self.allgrids:
                  self.subdivideNode(self.allnodes[pre_idx[:-1]])
 
+    def _strFloat(q):
+        fmt = len(q)
+
     def grepGrid(self, vector):
         """check if a grid(bitree) exists by distance of two vector
         print(self.root.children)
@@ -265,7 +268,7 @@ class Qtree(Octree):
 #            q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
 #
 #        return None
-    
+            
     def grepGrid(self, q):
         # For water like mol only
         p =np.zeros(4)
