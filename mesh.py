@@ -101,7 +101,7 @@ class AdaptMesh(mesh):
                 node = leaf
                 tree = leaf.tree
                 # I want to restrict the density in very close
-                # if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
+                #if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
                 node_err = 0
                 testgrids = node.testgrid
                 #print(node.testgrid)
@@ -127,11 +127,11 @@ class AdaptMesh(mesh):
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
                                ) 
-                    #rint(printStr)
-                    t0 = time()
+                    print(printStr)
+                    #t0 = time()
                     tree. subdivideNode(node)
-                    t1 = time()
-                    print("time of subdivideNode %s is %.8fs"%(node.idx,t1-t0))
+                    #t1 = time()
+                    #print("time of subdivideNode %s is %.8fs"%(node.idx,t1-t0))
                     fine = False 
             #t0 = time()
             self.confs.update(self._iter_conf())
