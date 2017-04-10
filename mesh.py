@@ -48,10 +48,12 @@ class AdaptMesh(mesh):
             print("\n%d th time translocation R refinement"%(self.R_refine_count))
             self.R_refine_count += 1
             fine = True
-            for leaf in self.RLeafNodes():
+            leaves = set(self.RLeafNodes())
+            for leaf in leaves:
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
                 # if leaf.pos[0] <  3 and leaf.size[0] < 0.5: continue
+                if leaf.size[0] < 0.15: continue # 10/(2**6) = 0.156
                 node = leaf
                 tree = leaf.tree
                 node_err = 0
@@ -73,7 +75,7 @@ class AdaptMesh(mesh):
                               " %5.2f"*3%tuple(self.max_err_conf.loc)+
                               " %5.2f"*4%tuple(self.max_err_conf.q) +
                               '\n' +
-                              "size of node %6.3f\n"%(node.size[0]) +
+                              "size of R node %6.3f\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
                               )  
@@ -102,8 +104,10 @@ class AdaptMesh(mesh):
                 tree = leaf.tree
                 # I want to restrict the density in very close
                 #if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
+                if node.size[0] < np.pi/4.0:continue # 4 * 8**3 = 2048
                 node_err = 0
                 testgrids = node.testgrid
+                #pdb.set_trace()
                 #print(node.testgrid)
                 for g in testgrids:
                     #t0 = time()
@@ -123,7 +127,7 @@ class AdaptMesh(mesh):
                               " %5.2f"*3%tuple(self.max_err_conf.loc)+
                               " %5.2f"*4%tuple(self.max_err_conf.q) +
                               '\n' +
-                              "area of node %6.3f/4*pi\n"%(node.size[0]) +
+                              "area of Q node %6.3f/4*pi\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
                                ) 
