@@ -99,10 +99,10 @@ class Octree:
         idxs = node_idx.replace(self.idx, '')
         pre_idx = self.idx
         for i in idxs:
-            pre_idx  += i
             if grid_idx not in self.allgrids:
                 if self.allnodes[pre_idx].isLeafNode:
                     self.subdivideNode(self.allnodes[pre_idx])
+            pre_idx  += i
 
     def grepGrid(self, vector):
         """check if a grid(bitree) exists by distance of two vector
@@ -175,7 +175,7 @@ class Qtree(Octree):
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
-        for i in range(4): self.subdivideNode(self.root.children[i])
+        #for i in range(4): self.subdivideNode(self.root.children[i])
         #self.fill(self.root.children[0].idx+'111111C7',0.0)
 
     def fill(self, idx, values):
@@ -183,7 +183,7 @@ class Qtree(Octree):
         """
         #import pdb 
         #pdb.set_trace()
-        self.addNode(idx)
+        #self.addNode(idx)
         # if idx:wtrR0Q2C7, grid_idx::wtrR0 or wtrR0Q2
         if idx in self.allgrids:
             self.allgrids[idx].values = values
@@ -309,7 +309,7 @@ class Rtree(Octree):
         """
         #import pdb 
         #pdb.set_trace()
-        self.addNode(idx)
+        #self.addNode(idx)
         # if idx:wtrR0Q2C7, grid_idx::wtrR0 or wtrR0Q2
         grid_idx = idx[ :idx.find(self.nID) + 2]
         if grid_idx in self.allgrids:
@@ -393,7 +393,8 @@ class  mesh:
             if n_count%1000 == 1:
                 print('-'*8 + "filling %10d/%d"%(n_count,n)+'-'*8)
             n_count += 1
-            self.fill(conf.idx, f(conf.loc, conf.q))
+            #self.fill(conf.idx, f(conf.loc, conf.q))
+            conf.values =  f(conf.loc, conf.q)
         #self.save(confs)
         
     def interpolate(self, R, q):
