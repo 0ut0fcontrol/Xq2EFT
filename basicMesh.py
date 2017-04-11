@@ -216,7 +216,7 @@ class Qtree(Octree):
                 q = self._ndx2q(child.idx, pos_ndx)
                 npstr = self._np2str(q)
                 if npstr not in self.gDict:
-                    self.gDict[npstr] = conf(idx, self.pos, q) 
+                    self.gDict[npstr] = conf(idx, tuple(self.pos), tuple(q)) 
                     # self.pos is translation space coord
                 grid = self.gDict[npstr]
                 self.allgrids[grid.idx]=grid
@@ -227,7 +227,7 @@ class Qtree(Octree):
             q = self._ndx2q(child.idx, child.pos)
             npstr = self._np2str(q)
             if npstr not in self.gDict:
-                self.gDict[npstr] = conf(testidx, self.pos, q)
+                self.gDict[npstr] = conf(testidx, tuple(self.pos), tuple(q))
             grid = self.gDict[npstr]
             self.allgrids[grid.idx] = grid
             child.testgrid.append(grid)

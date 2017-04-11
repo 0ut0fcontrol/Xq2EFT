@@ -2,6 +2,7 @@
 log = open('gen_x.log','w')
 import numpy as np
 import itertools
+import pdb
 #import cPickle as pickle
 import pickle
 from mesh import mesh, AdaptMesh
@@ -149,6 +150,7 @@ class EFT_calculator:
     def gen_PDB(self, confs=None):
         if confs is None:confs=self.grid._iter_conf()
         for conf in confs:
+            #if np.linalg.norm(conf.q) > 1: pdb.set_trace()
             coors = self._rq2PDB(conf.loc, conf.q)
             yield conf.idx, coors
     # Construct atomic coordinates for a pair from grid coordinate

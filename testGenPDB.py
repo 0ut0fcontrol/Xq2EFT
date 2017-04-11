@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 import numpy as np
+from random import sample
 from time import time
 import heapq
 import matplotlib
@@ -113,6 +114,29 @@ def test_random_set():
     axarr[2].text(0, 0, 'p=%.4f'%p)
     plt.savefig(figname)
 
+def randomSample():
+    root = 'pdbRQ_random.dat'
+    if not os.path.exists(root):os.mkdir(root)
+    def mol2mol_init(ele):
+        mol = [[i,0.0,0.0,0.0] for i in ele]
+        return mol
+    size = 200
+    folder_id = 0
+    file_count = 0
+    confs = calculator.grid._iter_conf()
+    confs = sample(list(confs), 2000) 
+    for idx, coors in calculator.gen_PDB(confs):
+    #for id, coors in calculator.gen_atomic_coors(0,10): 
+        #print(idx, coors)
+    
+        if  file_count%size == 0:
+            folder = os.path.join(root,"EFT_%04d"%(folder_id))
+            if not os.path.exists(folder):os.mkdir(folder)
+            folder_id += 1
+        pdb = open("%s/eft.%s.pdb"%(folder,idx),"w")
+        pdb.write(coors)
+        pdb.close()
+        file_count += 1
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -136,4 +160,5 @@ if __name__ == '__main__':
     t1 = time()
     print('took %.1f s to fill the grid' % (t1 - t0))
     test_random_set()
+    randomSample()
 

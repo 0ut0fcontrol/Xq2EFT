@@ -36,8 +36,8 @@ def mol2mol_init(ele):
 size = 200
 folder_id = 0
 file_count = 0
-confs = self.grid._iter_conf()
-confs = sample(confs, 2000)
+confs = calculator.grid._iter_conf()
+confs = sample(list(confs), 2000)
 for idx, coors in calculator.gen_PDB(confs): 
 #for id, coors in calculator.gen_atomic_coors(0,10): 
     #print(idx, coors)
