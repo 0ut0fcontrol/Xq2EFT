@@ -37,10 +37,10 @@ class Classical_calculator:
                 e += ener
                 f += force
                 t += np.cross(coor1[j]-com1, force)
-        if e>100.0:
-            e = 100.0
-            f = f/np.linalg.norm(f) * 100.0
-            t = t/np.linalg.norm(t) * 100.0
+#       if e>100.0:
+#           e = 100.0
+#           f = f/np.linalg.norm(f) * 100.0
+#           t = t/np.linalg.norm(t) * 100.0
         return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]])
 
     def atomicEF(self, x0, e0, s0, q0, x1, e1, s1, q1):

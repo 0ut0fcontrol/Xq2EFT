@@ -163,8 +163,10 @@ class Octree:
 
 
     def _np2str(self, q):
-        fmt = '%.5f'*len(q)
-        npstr = fmt%tuple(q)
+        npstr = ''
+        for i in q:
+            if i  < 0.0000001 and i> -0.0000001:i += 0.0000001
+            npstr += 'N%.5f'%(i)
         return npstr
 
 
@@ -297,13 +299,19 @@ class Qtree(Octree):
 class Rtree(Octree):
     def __init__(self, idx, symmetry=2):
         Octree.__init__(self,idx,
-                        np.array([7., np.pi/4., np.pi/2.]), # idx,pos(r, phi(x), theta(xy))
-                        np.array([5, np.pi/4., np.pi/2.]), 'Q') # size and rotation level idx
+                        np.array([0., 0., 0.]), 4*np.pi, 'Q') # size and rotation level idx
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
-        #for i in self.root.children:
-           # self.subdivideNode(i)
+#        for i in self.root.children:
+#            if i is not None:self.subdivideNode(i)
+    def _sph2xyz(self, sph):
+        r,phi,theta = sph
+        x = r * np.cos(phi) * np.cos(theta)
+        y = r * np.cos(phi) * np.sin(theta)
+        z = r * np.sin(phi)
+        return (x,y,z)
+
     def fill(self, idx, values):
         """fill conf after generation 
         """
@@ -321,17 +329,19 @@ class Rtree(Octree):
         #    return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
         #if np.dot(pos, pos) >  144.0:
         #    return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
-        if node is None: node = self.root
+        if node is None: node = self.root.children[self.findChild(self.root, self._sph2xyz(pos))]
+        #if node is None: node = self.root
         if neighbors is None: neighbors = self.findNeighbors(node, pos)
         ndim = len(pos)        
         v = np.zeros((8,ndim + 7))
+        #print('#'*4 +"interp pos is %.5f %.5f %.5f"%tuple(pos)+ '#'*4)
         for i in range(8):
             v[i,0:ndim] = neighbors[i].pos
+            #print(neighbors[i].idx + ' %.5f'*3%tuple(neighbors[i].pos))
             v[i,ndim:] = neighbors[i].interpolation(q)
         for dim in range(ndim):
             vtx_delta = 2**(ndim - dim - 1)
             for vtx in range(vtx_delta):
-                if v [vtx + vtx_delta, dim] ==  v[vtx, dim]:continue # avoid theta = pi/2, phi1=phi2
                 v[vtx, ndim:] += ((v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
                     (pos[dim] - v[vtx,dim])/ (v [vtx + vtx_delta, dim] - v[vtx, dim])
                     )
@@ -340,27 +350,44 @@ class Rtree(Octree):
     def subdivideNode(self, parent):
         parent.isLeafNode = False
         self.leafNodes.remove(parent)
-        newCentre = self._newCentre(parent)
+        if parent is self.root:
+            newCentre = np.array([[7., np.pi/4., 3.*np.pi/4.],
+                                  [7., np.pi/4., np.pi/4.] 
+                                 ])
+            size = np.array([5, np.pi/4., np.pi/4.])
+            for i in range(len(newCentre)):
+                node_pos = newCentre[i]
+                xyz = self._sph2xyz(node_pos)
+                key = self.findChild(parent, xyz)
+                child = Node(self.root.idx+str(key), node_pos, size, 8)
+                parent.children[key] = child
+        else:
+            newCentre = self._newCentre(parent)
+            for i in range(8):
+                child = Node(parent.idx + str(i), pos=newCentre[i], 
+                             size = parent.size/2.0, leaf_num= 8)
+                parent.children[i] = child
         for i in range(8):
-            child = Node(parent.idx + str(i), pos=newCentre[i], 
-                         size = parent.size/2.0, leaf_num= 8)
+            child = parent.children[i]
+            if child is None:continue
             self.leafNodes.add(child)
             self.allnodes[child.idx] = child
             for j, pos in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
-                npstr = self._np2str(pos)
+                xyz = self._sph2xyz(pos)
+                npstr = self._np2str(xyz)
                 if npstr not in self.gDict:
                     self.gDict[npstr] = Qtree(idx, pos)
                 grid = self.gDict[npstr]
                 self.allgrids[grid.idx]=grid
                 child.grids.append(grid)
-            npstr = self._np2str(child.pos)
+            xyz = self._sph2xyz(child.pos)
+            npstr = self._np2str(xyz)
             if npstr not in self.gDict:
                 self.gDict[npstr] = Qtree(child.idx+'%d%s7'%(i, self.nID), child.pos)
             grid = self.gDict[npstr]
             self.allgrids[grid.idx]=grid
             child.testgrid.append(grid)
-            parent.children[i] = child
             child.parent = parent
 
 ################### Above: basic tree, node, grid(conf) class ######################
@@ -373,6 +400,7 @@ class  mesh:
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)
     def updateDatabase(self, filename):
+        #self.confs = set()
         self.mesh = pickle.load(open(filename, "rb"))
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)

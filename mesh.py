@@ -34,7 +34,8 @@ class AdaptMesh(mesh):
         self.max_err_conf = None
         self.toPDB = toPDB
         self.f = f
-        self.fill_with_f(self.f)
+        if len(self.confs) < 1000:
+            self.fill_with_f(self.f)
         self.E_CUTOFF = err_cutoff
         self._refine_Q()
         self._refine_R()
@@ -53,7 +54,9 @@ class AdaptMesh(mesh):
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
                 # if leaf.pos[0] <  3 and leaf.size[0] < 0.5: continue
-                if leaf.size[0] < 0.15: continue # 10/(2**6) = 0.156
+                if leaf.size[0] < 0.156: continue
+                    #print("node.idx: %10s pos:%8.5f %8.5f %8.5f"%(leaf.idx,leaf.size[0],leaf.size[1],leaf.size[2]))
+                    #continue # 10/(2**6) = 0.156
                 node = leaf
                 tree = leaf.tree
                 node_err = 0
@@ -61,6 +64,11 @@ class AdaptMesh(mesh):
                 for Qtree in node.testgrid:
                     for conf in Qtree.allgrids.values():
                         testgrids.add(conf)
+                min_values = -100.0
+                for g in testgrids:
+                    if g.values[0] > min_values: min_values = g.values[0]
+                if min_values > 100 and  leaf.size[0] < 0.625: continue
+                if min_values > 30 and  leaf.size[0] < 0.312: continue
                 for g in testgrids:
                     g_iterp = tree.interpolation(g.loc, g.q, node=node, neighbors=node.grids)
                     err = np.abs(g_iterp - g.values)
@@ -104,7 +112,10 @@ class AdaptMesh(mesh):
                 tree = leaf.tree
                 # I want to restrict the density in very close
                 #if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
-                if node.size[0] < np.pi/4.0:continue # 4 * 8**3 = 2048
+                if leaf.testgrid[0].values[0] > 100 and leaf.size[0] < np.pi/2.0: continue
+                if leaf.testgrid[0].values[0] > 30 and  leaf.size[0] < np.pi/4.0: continue
+                if leaf.size[0] < np.pi/8.0: continue
+                #if leaf.testgrid[0].values[0] > 30 and node.size[0] < np.pi/4.0:continue # 4 * 8**3 = 2048
                 node_err = 0
                 testgrids = node.testgrid
                 #pdb.set_trace()
@@ -119,7 +130,7 @@ class AdaptMesh(mesh):
                     if err > node_err:
                         node_err = err
                         self.max_err_conf = g
-                if node.error == 0:continue
+                #if node.error == 0:continue
                 if node_err < node.error: node.error = node_err
                 if node.error > self.E_CUTOFF:
                     printStr=("\nmax  error  is %5.2f\n"%(node.error)+

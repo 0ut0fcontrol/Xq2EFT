@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 log = open('gen_x.log','w')
 import numpy as np
 import itertools
