@@ -270,6 +270,7 @@ class Qtree(Octree):
         return v[0,ndim:]
 
     def _q2ndx(self, q):
+        q = np.copy(q)
         cubeID = np.abs(q).argmax()
         q /= q[cubeID]
         q = np.arctan(q)
@@ -390,12 +391,97 @@ class Rtree(Octree):
             child.testgrid.append(grid)
             child.parent = parent
 
+class Xtree(Octree):
+    def __init__(self, idx, symmetry=2):
+        Octree.__init__(self,idx,
+                        np.array([0., 0., 0.]), np.array([12., 12., 12.]), 'Q') # size and rotation level idx
+        self.leafNodes = set()
+        self.leafNodes.add(self.root)
+        self.subdivideNode(self.root)
+#        for i in self.root.children:
+#            if i is not None:self.subdivideNode(i)
+
+
+    def fill(self, idx, values):
+        """fill conf after generation 
+        """
+        #import pdb 
+        #pdb.set_trace()
+        #self.addNode(idx)
+        # if idx:wtrR0Q2C7, grid_idx::wtrR0 or wtrR0Q2
+        grid_idx = idx[ :idx.find(self.nID) + 2]
+        if grid_idx in self.allgrids:
+            self.allgrids[grid_idx].fill(idx, values)
+        else:
+            raise Exception("Con't fill conf %s\n"%(idx))
+    def interpolation(self, pos, q, node=None, neighbors=None):
+        #if np.dot(pos, pos) < DIST_CUTOFF:
+        #    return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+        #if np.dot(pos, pos) >  144.0:
+        #    return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
+        if node is None: node = self.root
+        if neighbors is None: neighbors = self.findNeighbors(node, pos)
+        ndim = len(pos)        
+        v = np.zeros((8,ndim + 7))
+        #print('#'*4 +"interp pos is %.5f %.5f %.5f"%tuple(pos)+ '#'*4)
+        for i in range(8):
+            v[i,0:ndim] = neighbors[i].pos
+            #print(neighbors[i].idx + ' %.5f'*3%tuple(neighbors[i].pos))
+            v[i,ndim:] = neighbors[i].interpolation(q)
+        for dim in range(ndim):
+            vtx_delta = 2**(ndim - dim - 1)
+            for vtx in range(vtx_delta):
+                v[vtx, ndim:] += ((v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
+                    (pos[dim] - v[vtx,dim])/ (v [vtx + vtx_delta, dim] - v[vtx, dim])
+                    )
+        return v[0,ndim:]
+    
+    def subdivideNode(self, parent):
+        parent.isLeafNode = False
+        self.leafNodes.remove(parent)
+        newCentre = self._newCentre(parent)
+        if parent is self.root:
+            keys = []
+            for k in DIRLOOKUP.keys():
+                if '-' in k[1]:continue
+                if '-' in k[2]:continue
+                keys.append(k)
+            for k in keys:
+                i = DIRLOOKUP[k]
+                child = Node(parent.idx + str(i), pos=newCentre[i], 
+                             size = parent.size/2.0, leaf_num= 8)
+                parent.children[i] = child
+        else:
+            for i in range(8):
+                child = Node(parent.idx + str(i), pos=newCentre[i], 
+                             size = parent.size/2.0, leaf_num= 8)
+                parent.children[i] = child
+        for i in range(8):
+            child = parent.children[i]
+            if child is None:continue
+            self.leafNodes.add(child)
+            self.allnodes[child.idx] = child
+            for j, pos in enumerate(self._grid_positions(child)):
+                idx = child.idx+'%s%d'%(self.nID,j)
+                npstr = self._np2str(pos)
+                if npstr not in self.gDict:
+                    self.gDict[npstr] = Qtree(idx, pos)
+                grid = self.gDict[npstr]
+                self.allgrids[grid.idx]=grid
+                child.grids.append(grid)
+            npstr = self._np2str(child.pos)
+            if npstr not in self.gDict:
+                self.gDict[npstr] = Qtree(child.idx+'%d%s7'%(i, self.nID), child.pos)
+            grid = self.gDict[npstr]
+            self.allgrids[grid.idx]=grid
+            child.testgrid.append(grid)
+            child.parent = parent
 ################### Above: basic tree, node, grid(conf) class ######################
 ################### Below: basic mesh class ########################################
 import pickle
 class  mesh:
     def __init__(self):
-        self.mesh = Rtree('wtr_wtrR')
+        self.mesh = Xtree('wtr_wtrX')
         self.confs = set()
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)
@@ -430,7 +516,6 @@ class  mesh:
 
     def load(self, filename):
         load_count = 0
-        import pdb
         with open(filename,'r') as f:
             for i in f:
                 if load_count%1000 == 0: print('>'*8+"Looded %10d conf"%(load_count)+'<'*8)

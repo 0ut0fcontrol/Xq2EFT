@@ -121,12 +121,17 @@ class EFT_calculator:
         if q[1] < 0:
             q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
         # convert X, q to polar coordinates
-        r, phi, theta = tools.xyz2spherical(X)
+        # r, phi, theta = tools.xyz2spherical(X)
         # use the grid to obtain results
-        eft = self.grid.interpolate(np.array([r, phi, theta ]), q)
+        #eft = self.grid.interpolate(np.array([r, phi, theta ]), q)
+        eft = self.grid.interpolate(X, q)
         ener = eft[0]
         force = eft[1:4]
         torque = eft[4:7]
+        if ener > 50: 
+            print(q)
+            print(np.dtype(q[0]))
+            open("outlier.pdb", "w").write(self._rq2PDB(X,tuple(q)))
         # Reverse the operations for mol0 mirror symmetry back
         for i in reflections:
             force[i] = -force[i]
@@ -154,8 +159,9 @@ class EFT_calculator:
             yield conf.idx, coors
     # Construct atomic coordinates for a pair from grid coordinate
     def _rq2Atomic(self, loc, q): # loc is (r, phi, theta)
-        r, phi, theta = loc
-        Xcom = tools.spherical2xyz(r, phi, theta) 
+        #r, phi, theta = loc
+        #Xcom = tools.spherical2xyz(r, phi, theta) 
+        Xcom = loc
         log.write(' R:'+'%5.2f '*3%tuple(loc)+ ' Q:'+ '%5.2f '*4%tuple(q)+'\n')
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)
@@ -183,7 +189,7 @@ class Water:
         self.mass = np.array([15.99900, 1.00800, 1.00800])
         refCoor = np.array([ [-0.06556939,   0.00000000,    0.00000000],
                               [0.52035943,    0.76114632,    0.00000000],
-                             [0.52035943,   -0.76114632,    0.00000000] ])
+                              [0.52035943,   -0.76114632,    0.00000000] ])
         # The following code ensures that refCoor has COM at origin and orientation
         # aligned with the getR() method
         refCoor = refCoor - self.getCOM(refCoor)

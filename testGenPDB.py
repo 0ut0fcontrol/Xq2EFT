@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 import numpy as np
+import pdb
 from random import sample
 from time import time
 import heapq
@@ -37,10 +38,10 @@ class Classical_calculator:
                 e += ener
                 f += force
                 t += np.cross(coor1[j]-com1, force)
-#       if e>100.0:
-#           e = 100.0
-#           f = f/np.linalg.norm(f) * 100.0
-#           t = t/np.linalg.norm(t) * 100.0
+       #if e>100.0:
+       #    e = 100.0
+       #    f = f/np.linalg.norm(f) * 100.0
+       #    t = t/np.linalg.norm(t) * 100.0
         return np.array([e, f[0], f[1], f[2], t[0], t[1], t[2]])
 
     def atomicEF(self, x0, e0, s0, q0, x1, e1, s1, q1):
@@ -48,6 +49,7 @@ class Classical_calculator:
         e = np.sqrt(e0 * e1)
         s = s0 + s1
         r = np.linalg.norm(x0 - x1)
+        if r <0.1 : return 100.0, np.array([100., 100.,100.,])
         sor6 = (s/r) ** 6
         evdw = e * (sor6**2 - 2 * sor6)
         fvdw = e / r**2 * sor6 * (sor6 - 1) * (x1 - x0)
@@ -81,6 +83,9 @@ def test_random_set():
         # evaluate with calculator
         eft = calculator.eval(X0, q0, X1, q1)
         e1.append(eft[0])
+        if eft[0] > 50:
+            print(coors, name)
+            print(np.dtype(q1[0]))
         fce1 += list(eft[1:4])
         trq1 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))
@@ -124,7 +129,9 @@ def randomSample():
     folder_id = 0
     file_count = 0
     confs = calculator.grid._iter_conf()
-    confs = sample(list(confs), 2000) 
+    confs = list(confs)
+    if len(confs) > 2000:
+        confs = sample(list(confs), 2000) 
     for idx, coors in calculator.gen_PDB(confs):
     #for id, coors in calculator.gen_atomic_coors(0,10): 
         #print(idx, coors)
