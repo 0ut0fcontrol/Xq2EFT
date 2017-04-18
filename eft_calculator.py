@@ -28,8 +28,8 @@ class EFT_calculator:
         #self.grid = mesh()
         self.grid = AdaptMesh()
         if filename != None: 
-            self.grid.updateDatabase(filename)
-
+            #self.grid.updateDatabase(filename)
+            self.grid.load(filename)
     # Setup the grid structure. If provided with a data file, load it
     # Given a calculator that evalulates the atomic coordinates of a pair,
     # use the results to fill the grid
@@ -39,7 +39,7 @@ class EFT_calculator:
             return calculator.eval(coor)
         self.grid.refine(f, self._rq2PDB, err_cutoff, filename)
         print("refinement done")
-        self.grid.dumpDatabase(filename)
+        #self.grid.dumpDatabase(filename)
         #    try:
         #        self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
         #    except Exception:
@@ -124,9 +124,12 @@ class EFT_calculator:
         r, phi, theta = tools.xyz2spherical(X)
         # use the grid to obtain results
         eft = self.grid.interpolate(np.array([r, phi, theta ]), q)
+        #eft = self.grid.interpolate(X, q)
         ener = eft[0]
         force = eft[1:4]
         torque = eft[4:7]
+        #if ener > 15: 
+        #    open("outlier.pdb", "w").write(self._rq2PDB(X,q))
         # Reverse the operations for mol0 mirror symmetry back
         for i in reflections:
             force[i] = -force[i]
@@ -156,6 +159,7 @@ class EFT_calculator:
     def _rq2Atomic(self, loc, q): # loc is (r, phi, theta)
         r, phi, theta = loc
         Xcom = tools.spherical2xyz(r, phi, theta) 
+        Xcom = loc
         log.write(' R:'+'%5.2f '*3%tuple(loc)+ ' Q:'+ '%5.2f '*4%tuple(q)+'\n')
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)
@@ -183,7 +187,7 @@ class Water:
         self.mass = np.array([15.99900, 1.00800, 1.00800])
         refCoor = np.array([ [-0.06556939,   0.00000000,    0.00000000],
                               [0.52035943,    0.76114632,    0.00000000],
-                             [0.52035943,   -0.76114632,    0.00000000] ])
+                              [0.52035943,   -0.76114632,    0.00000000] ])
         # The following code ensures that refCoor has COM at origin and orientation
         # aligned with the getR() method
         refCoor = refCoor - self.getCOM(refCoor)
@@ -229,7 +233,3 @@ class Water:
         coor = np.dot(self.refCoor, R.T)
         coor += Xcom
         return coor
-
-#s
-
-

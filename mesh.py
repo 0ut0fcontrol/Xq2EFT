@@ -41,6 +41,7 @@ class AdaptMesh(mesh):
         self._refine_Q()
         self._refine_R()
         self.n = len(self.confs)
+        self.save()
         self.database_name = None
 
     def _refine_R(self):
@@ -54,8 +55,10 @@ class AdaptMesh(mesh):
             for leaf in leaves:
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                # if leaf.pos[0] <  3 and leaf.size[0] < 0.5: continue
-                if leaf.size[0] < 0.156: continue
+                min_size = 0.2
+                if leaf.size[1] < min_size:
+                    print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(r, min_size,leaf.error)+ '#'*4)
+                    continue
                     #print("node.idx: %10s pos:%8.5f %8.5f %8.5f"%(leaf.idx,leaf.size[0],leaf.size[1],leaf.size[2]))
                     #continue # 10/(2**6) = 0.156
                 node = leaf
@@ -65,11 +68,11 @@ class AdaptMesh(mesh):
                 for Qtree in node.testgrid:
                     for conf in Qtree.allgrids.values():
                         testgrids.add(conf)
-                min_values = -100.0
-                for g in testgrids:
-                    if g.values[0] > min_values: min_values = g.values[0]
-                if min_values > 100 and  leaf.size[0] < 0.625: continue
-                if min_values > 30 and  leaf.size[0] < 0.312: continue
+                #min_values = 100.0
+                #for g in testgrids:
+                #    if g.values[0] <  min_values: min_values = g.values[0]
+                #if min_values > 25.0 : continue
+                #pdb.set_trace()
                 for g in testgrids:
                     g_iterp = tree.interpolation(g.loc, g.q, node=node, neighbors=node.grids)
                     err = np.abs(g_iterp - g.values)
@@ -80,14 +83,14 @@ class AdaptMesh(mesh):
                 if node_err < node.error: node.error = node_err
                 if node.error > self.E_CUTOFF:
                     printStr=("max  error  is %5.2f\n"%(node.error)+
-                                  "conf:%15s"%(self.max_err_conf.idx)+
+                              "conf:% 15s"%(self.max_err_conf.idx)+
                               " %5.2f"*3%tuple(self.max_err_conf.loc)+
                               " %5.2f"*4%tuple(self.max_err_conf.q) +
                               '\n' +
                               "size of R node %6.3f\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                              )  
+                               )  
                     print(printStr)
                     tree.subdivideNode(node)
                     fine = False 
@@ -113,10 +116,15 @@ class AdaptMesh(mesh):
                 tree = leaf.tree
                 # I want to restrict the density in very close
                 #if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
-                if leaf.testgrid[0].values[0] > 100 and leaf.size[0] < np.pi/2.0: continue
-                if leaf.testgrid[0].values[0] > 30 and  leaf.size[0] < np.pi/4.0: continue
-                if leaf.size[0] < np.pi/8.0: continue
-                #if leaf.testgrid[0].values[0] > 30 and node.size[0] < np.pi/4.0:continue # 4 * 8**3 = 2048
+                #if leaf.testgrid[0].values[0] > 99: continue
+                if leaf.testgrid[0].values[0] >  100 and leaf.size[0] < np.pi/2.0: continue
+                #if leaf.testgrid[0].values[0] >  25 and leaf.size[0] < np.pi/4.0: continue
+                if leaf.size[0] < np.pi/8.0: 
+                    print('#'*4 + '\nQ node in %8.5f Esacape for size < np.pi/8.0, Node.error:%8.3f'%(r,leaf.error)+ '#'*4)
+                    continue
+                #if leaf.testgrid[0].values[0] > 50 and leaf.size[0] < np.pi/2.0: continue
+                #if leaf.testgrid[0].values[0] > 25 and  leaf.size[0] < np.pi/4.0: continue
+                #if leaf.testgrid[0].values[0] > 25.0:continue
                 node_err = 0
                 testgrids = node.testgrid
                 #pdb.set_trace()
@@ -142,7 +150,7 @@ class AdaptMesh(mesh):
                               "area of Q node %6.3f/4*pi\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               ) 
+                               )  
                     print(printStr)
                     #t0 = time()
                     tree. subdivideNode(node)
