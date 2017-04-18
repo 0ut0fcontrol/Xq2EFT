@@ -28,8 +28,8 @@ class EFT_calculator:
         #self.grid = mesh()
         self.grid = AdaptMesh()
         if filename != None: 
-            self.grid.updateDatabase(filename)
-
+            #self.grid.updateDatabase(filename)
+            self.grid.load(filename)
     # Setup the grid structure. If provided with a data file, load it
     # Given a calculator that evalulates the atomic coordinates of a pair,
     # use the results to fill the grid
@@ -39,7 +39,7 @@ class EFT_calculator:
             return calculator.eval(coor)
         self.grid.refine(f, self._rq2PDB, err_cutoff, filename)
         print("refinement done")
-        self.grid.dumpDatabase(filename)
+        #self.grid.dumpDatabase(filename)
         #    try:
         #        self.grid.fill(conf.idx, f(conf.position,conf.vector, conf.angle))
         #    except Exception:
@@ -128,10 +128,8 @@ class EFT_calculator:
         ener = eft[0]
         force = eft[1:4]
         torque = eft[4:7]
-        if ener > 50: 
-            print(q)
-            print(np.dtype(q[0]))
-            open("outlier.pdb", "w").write(self._rq2PDB(X,tuple(q)))
+        if ener > 15: 
+            open("outlier.pdb", "w").write(self._rq2PDB(X,q))
         # Reverse the operations for mol0 mirror symmetry back
         for i in reflections:
             force[i] = -force[i]

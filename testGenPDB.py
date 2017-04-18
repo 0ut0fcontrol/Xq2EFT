@@ -71,6 +71,7 @@ def test_random_set():
     for i in range(1, 2000):
         # load atomic coor 
         name = 'test.dat/random/test%04d.inp.log' % i
+        #if i == 1693: pdb.set_trace()
         eft, coors = calculator._parseQMlog(name)
         # evaluate with analytical function
         eft = cc.eval(coors)
@@ -83,9 +84,9 @@ def test_random_set():
         # evaluate with calculator
         eft = calculator.eval(X0, q0, X1, q1)
         e1.append(eft[0])
-        if eft[0] > 50:
+        if eft[0] > 15:
             print(coors, name)
-            print(np.dtype(q1[0]))
+        #    print(np.dtype(q1[0]))
         fce1 += list(eft[1:4])
         trq1 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))

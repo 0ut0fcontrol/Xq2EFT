@@ -40,6 +40,7 @@ class AdaptMesh(mesh):
         self._refine_Q()
         self._refine_R()
         self.n = len(self.confs)
+        self.save()
         self.database_name = None
 
     def _refine_R(self):
@@ -55,7 +56,7 @@ class AdaptMesh(mesh):
                 # I want to restrict the density in very close
                 r = np.linalg.norm(leaf.pos)
                 if r  +  np.linalg.norm(leaf.size) < 2.0001: continue # 1.5**2
-                min_size = 0.1
+                min_size = 0.05
                 if leaf.size[0] < min_size:
                     print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(r, min_size,leaf.error)+ '#'*4)
                     continue
@@ -72,6 +73,7 @@ class AdaptMesh(mesh):
                 #for g in testgrids:
                 #    if g.values[0] <  min_values: min_values = g.values[0]
                 #if min_values > 25.0 : continue
+                #pdb.set_trace()
                 for g in testgrids:
                     g_iterp = tree.interpolation(g.loc, g.q, node=node, neighbors=node.grids)
                     err = np.abs(g_iterp - g.values)
