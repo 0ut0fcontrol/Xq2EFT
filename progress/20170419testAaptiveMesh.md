@@ -1,10 +1,10 @@
 # Testing tree-based Adaptive Mesh
 ## 1. 前言
-使用 adaptive mesh 的初衷是替代现有的经验性打格点的方法, 自动根据现有网格的精度, 针对性地增加特定区域地网格密度(Adaptive mesh refinement, AMR). 这面临着2个问题:
+使用 adaptive mesh 的初衷是替代现有的经验性打格点的方法, 自动根据已有格点, 针对性地增加特定区域地网格密度(Adaptive mesh refinement, AMR). 这面临着2个问题:
   1. 如何组织格点使网格具有 adaptive refinement 的特性.
   2. 如何使网格收敛, 或者说, 如果判断哪些地方需要加密, 哪些不用.      
 
-下面我讲介绍在这两个问题上探索的进展, 以及遇到的问题.
+下面我将介绍在这两个问题上探索的进展, 以及遇到的问题.
 
 ## 2. 网格结构
 ### 2.1 网格类型
@@ -23,13 +23,13 @@
 
 ![EvR](./res/EvsR.png)
 
-可以看出能量与r有很大的相关性, 在近距离(2 - 3.5 A), 原有网格的格点r的步长为 0.1 A. 非常密了.
+可以看出能量与r有很大的相关性, 在近距离(2 - 3.5 A), 能量随r变化很大, 所以原有网格 r 在[2 - 3.5]的步长为 0.1 A.
 
 下图是黄荷博士约40万格点中平移空间2702个格点的分布:   
 
 ![hhF](./res/hhF.png)   
 
-以分子力学(MM)计算格点能量, 以2000个随机构象作为测试集进行插值, 结果如下:    
+以分子力学(MM)计算所有格点能量, 以2000个随机构象作为测试集进行插值, 结果如下:    
 
 ![MMvMM](./res/MMvsInterpInMMgrid.png)
 
@@ -41,7 +41,7 @@
 ### 2.3 基于树结构的网格
 一对水的构象空间是平移空间和旋转空间的乘积, 实现用树结构表示构象空间, 需要实现树结构表示平移空间和旋转空间. 在这里, 我基于四元数对旋转空间进行剖分. 平移空间尝试了基于直角坐标系(x,y,z) 和球坐标系(r, phi, theta)的八叉树剖分.
 #### 2.3.1 旋转空间基于四元素剖分
-这个我很难讲清楚, 基本原理是四元素表示的旋转空间等价与四维空间中的半球, 四维球'面'可以映射到8个正方体中, 半球映射到4个正方体中, 每个正方体再基于八叉树剖分. 具体可以看参考文献 [*Quaternions in molecular modeling*](http://www.sciencedirect.com/science/article/pii/S1093326306000829).
+这个我很难讲清楚, 基本原理是四元素表示的旋转空间与四维空间中的半球等价, 四维球'面'可以映射到8个正方体中, 半球映射到4个正方体中, 每个正方体再基于八叉树剖分. 具体可以看参考文献 [*Quaternions in molecular modeling*](http://www.sciencedirect.com/science/article/pii/S1093326306000829).
 #### 2.3.2 平移空间基于球坐标系剖分
 球坐标系中, r取值[0,+无穷), phi是与xy平面的夹角,取值范围 [-pi/2, pi/2], theta是与x轴的夹角, 取值[-pi,pi).       
 
@@ -138,18 +138,21 @@ PS:当能量误差设定为 < 1 kcal时, 格点太多, 内存不够, 未收敛.
 ## 4. 问题与计划
 现在主要的问题就一个: **平移空间网格形状与构象空间势能面不适应, 质心距离r这个自由度总是sample不足.**
 
-之前黄荷博士提出一个方案是保留r, 而theta和phi代表的球面由[cubed-sphere](https://mathematica.stackexchange.com/questions/85592/how-to-create-an-elementmesh-of-a-sphere)均匀分割.
+之前黄荷博士提出一个方案: 保留r, 而theta和phi代表的球面由[cubed-sphere](https://mathematica.stackexchange.com/questions/85592/how-to-create-an-elementmesh-of-a-sphere)均匀分割.
 
 - cubed-sphere        
   ![cubed-sphere](./res/cubed-sphere.png)
 
-从现在的结果看来, 这应该是最优的方案.      
+从现在的结果看来, 这应该是最优的方案:        
+  1. 平移空间球面均匀分割.      
+  2. 平移空间的r与其他5个自由度独立, 可以任意加密.
 
 但是这种网格一但决定在r上增加sample, 就是加一整层球面, 而不是一小片球面, 那将是巨量的点.
 
-而r的离散化步长如何决定也是一个问题.       
+而且 r 的离散化步长如何决定也是一个问题.       
 
 - 人为设定? @花博, 你之前都是怎么决定r的步长的?
+  如果人为设定, 与Adaptive mesh的初衷背道而驰.
 
 - 还是也通过测试点的判断r是否分割? 那怎么设定测试点?
 
