@@ -55,9 +55,11 @@ class AdaptMesh(mesh):
             for leaf in leaves:
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                min_size = 0.2
-                if leaf.size[1] < min_size:
-                    print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(r, min_size,leaf.error)+ '#'*4)
+                min_size = 0.4
+                if leaf.pos[0] < 6.0:min_size = 0.2
+                if leaf.pos[0] < 3.5:min_size = 0.0618
+                if leaf.size[0] < min_size:
+                    print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(leaf.pos[0], min_size,leaf.parent.error)+ '#'*4)
                     continue
                     #print("node.idx: %10s pos:%8.5f %8.5f %8.5f"%(leaf.idx,leaf.size[0],leaf.size[1],leaf.size[2]))
                     #continue # 10/(2**6) = 0.156
@@ -90,8 +92,8 @@ class AdaptMesh(mesh):
                               "size of R node %6.3f\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               )  
-                    print(printStr)
+                               )   
+                    print(printStr) 
                     tree.subdivideNode(node)
                     fine = False 
             self.confs.update(self._iter_conf())
@@ -117,11 +119,17 @@ class AdaptMesh(mesh):
                 # I want to restrict the density in very close
                 #if tree.pos[0] < 2.5 and node.size[0] < np.pi/8.0:continue
                 #if leaf.testgrid[0].values[0] > 99: continue
+                min_size = np.pi/2.
+                if leaf.tree.pos[0] < 6.0:min_size = np.pi/4.
+                if leaf.tree.pos[0] < 3.5:min_size = np.pi/16.
+                #if leaf.tree.pos[0] < 2.7:min_size = np.pi/16.
                 if leaf.testgrid[0].values[0] >  100 and leaf.size[0] < np.pi/2.0: continue
                 #if leaf.testgrid[0].values[0] >  25 and leaf.size[0] < np.pi/4.0: continue
-                if leaf.size[0] < np.pi/8.0: 
-                    print('#'*4 + '\nQ node in %8.5f Esacape for size < np.pi/8.0, Node.error:%8.3f'%(r,leaf.error)+ '#'*4)
+                if leaf.size[0] < min_size:
+                    print('#'*4 + '\nQ node in %8.5f Esacape for size < np.pi/%d, Node.error:%8.3f'%(
+                        leaf.tree.pos[0], int(np.pi/min_size), leaf.parent.error)+ '#'*4)
                     continue
+                #if leaf.size[0] < np.pi/16:continue
                 #if leaf.testgrid[0].values[0] > 50 and leaf.size[0] < np.pi/2.0: continue
                 #if leaf.testgrid[0].values[0] > 25 and  leaf.size[0] < np.pi/4.0: continue
                 #if leaf.testgrid[0].values[0] > 25.0:continue
@@ -150,7 +158,7 @@ class AdaptMesh(mesh):
                               "area of Q node %6.3f/4*pi\n"%(node.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               )  
+                               )   
                     print(printStr)
                     #t0 = time()
                     tree. subdivideNode(node)

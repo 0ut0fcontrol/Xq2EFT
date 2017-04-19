@@ -320,9 +320,9 @@ class Qtree(Octree):
 
 class Rtree(Octree):
     def __init__(self, idx, symmetry=2):
-        self.r_size = (12.-2.)*(2.-GOLDEN)
+        self.r_size = (7.-2.)*(2.-GOLDEN)
         Octree.__init__(self, idx, np.array([2+self.r_size, 0., np.pi/2.]), # centre, r, phi, theta
-                                   np.array([self.r_size, np.pi/2., np.pi/2.]), 'Q') # size and rotation level idx
+                                    np.array([self.r_size, np.pi/2., np.pi/2.]), 'Q') # size and rotation level idx
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
@@ -358,11 +358,11 @@ class Rtree(Octree):
                             [+offset[0]*GOLDEN,-offset[1],+offset[2]],
                             [+offset[0]*GOLDEN,+offset[1],-offset[2]],
                             [+offset[0]*GOLDEN,+offset[1],+offset[2]]
-                             ]) 
+                             ])  
         return node.pos + offsets
 
     def _newCentre_golden(self,node):
-        offset = (node.size[0] * (GOLDEN-1.), node.size[1]/2., node.size[2]/2.)
+        offset = (node.size[0] * (GOLDEN-1.), node.size[1]*0.5, node.size[2]*0.5)
         return self._grid_positions(node,offset)
 
     def subdivideNode(self, parent):
@@ -412,6 +412,29 @@ class Rtree(Octree):
             self.allgrids[idx]=grid
             child.testgrid.append(grid)
             child.parent = parent
+
+    def interpolation(self, pos, q, node=None, neighbors=None):
+        #if np.dot(pos, pos) < DIST_CUTOFF:
+        #    return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
+        #if np.dot(pos, pos) >  144.0:
+        #    return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
+        #if node is None: node = self.root.children[self.findChild(self.root, self._sph2xyz(pos))]
+        if node is None: node = self.root
+        if neighbors is None: neighbors = self.findNeighbors(node, pos)
+        ndim = len(pos)        
+        v = np.zeros((8,ndim + 7))
+        #print('#'*4 +"interp pos is %.5f %.5f %.5f"%tuple(pos)+ '#'*4)
+        for i in range(8):
+            v[i,0:ndim] = neighbors[i].pos
+            #print(neighbors[i].idx + ' %.5f'*3%tuple(neighbors[i].pos))
+            v[i,ndim:] = neighbors[i].interpolation(q)
+        for dim in range(ndim):
+            vtx_delta = 2**(ndim - dim - 1)
+            for vtx in range(vtx_delta):
+                v[vtx, ndim:] += ((v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
+                    (pos[dim] - v[vtx,dim])/ (v [vtx + vtx_delta, dim] - v[vtx, dim])
+                    )
+        return v[0,ndim:]
 
 class Xtree(Octree):
     def __init__(self, idx, symmetry=2):
@@ -571,6 +594,13 @@ class  mesh:
         for Qtree in self.mesh.gDict.values():
             for conf in Qtree.gDict.values():
                 yield conf
+    def _iter_grid(self):
+        for Qtree in self.mesh.gDict.values():
+            yield Qtree
+
+    def _grid_conf(self):
+        for Qtree in self.mesh.gDict.values():
+            yield Qtree.root.children[0].grids[0]
 
     def QLeafNodes(self):
         for RNode in self.RLeafNodes():

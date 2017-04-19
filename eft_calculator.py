@@ -159,7 +159,7 @@ class EFT_calculator:
     def _rq2Atomic(self, loc, q): # loc is (r, phi, theta)
         r, phi, theta = loc
         Xcom = tools.spherical2xyz(r, phi, theta) 
-        Xcom = loc
+        #Xcom = loc
         log.write(' R:'+'%5.2f '*3%tuple(loc)+ ' Q:'+ '%5.2f '*4%tuple(q)+'\n')
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)
