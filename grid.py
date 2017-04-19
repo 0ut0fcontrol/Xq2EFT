@@ -149,6 +149,21 @@ class Grid:
             for _ in self._gen_leaves_with_x_help(node.next[i], pre_x+[node.xs[i]]):
                 yield _
 
+    def gen_grid_x(self):
+        for grid, x in self._gen_grids_with_x_help(self.headNode, []):
+            yield x
+
+    def _gen_grids_with_x(self):
+        for grid, x in self._gen_grids_with_x_help(self.headNode, []):
+            yield grid, x
+
+    def _gen_grids_with_x_help(self, node, pre_x, level = 3):
+        if level == 0:
+            yield node, pre_x + [0., 0., 0.]
+            return
+        for i in range(len(node.next)):
+            for _ in self._gen_grids_with_x_help(node.next[i], pre_x+[node.xs[i]], level - 1):
+                yield _
     # Count the total number of points in the grid
     def _count(self):
         return self.headNode.count()

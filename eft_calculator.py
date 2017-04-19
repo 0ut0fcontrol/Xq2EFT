@@ -154,6 +154,13 @@ class EFT_calculator:
             coors = self._spherical2Atomic(x)
             yield i, coors
 
+    def gen_PDB(self, confs=None):
+        if confs is None:confs=self.grid.gen_x()
+        for i, x in enumerate(confs):
+            #if np.linalg.norm(conf.q) > 1: pdb.set_trace()
+            coors = self._spherical2PDB(x)
+            yield i, coors
+
     # Construct atomic coordinates for a pair from grid coordinate
     def _spherical2Atomic(self, coor):
         r, phi, theta, ophi1, ophi2, otheta = coor
@@ -162,12 +169,25 @@ class EFT_calculator:
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)
 
+    def _spherical2PDB(self, coor, NdxAtom=1,NdxRes=1):
+        c= self._spherical2Atomic(coor)
+        mol = 'TITLE para:' + '%8.3f'*6%tuple(coor) + '\n'
+        for i in range(self.mol.n1+self.mol.n2):
+            mol += "ATOM  %5d%3s%6s A%4d%12.3f%8.3f%8.3f  1.00  0.00\n" % (
+                NdxAtom, self.mol.ele[i], self.mol.frg, NdxRes,c[i][0],c[i][1],c[i][2])
+            if NdxAtom == self.mol.n1:NdxRes += 1
+            NdxAtom += 1
+        return mol
 
 # A class that holds information related to the atomic structure of a water
 # molecule. It also includes several methods that carries out operations 
 # related to the atomic coordinates.
 class Water:
     def __init__(self):
+        self.frg = "HOH"
+        self.n1 = 3
+        self.n2 = 3
+        self.ele = "OHHOHH"
         self.mass = np.array([15.99900, 1.00800, 1.00800])
         refCoor = np.array([ [-0.06556939,   0.00000000,    0.00000000],
                              [0.52035943,    0.76114632,    0.00000000],
