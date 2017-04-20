@@ -561,6 +561,13 @@ class  mesh:
             for conf in confs:
                 conf_str='%s'%(conf.idx) + ' %f'*7%tuple(conf.values) + '\n'
                 f.write(conf_str)
+    def _iter_grid(self):
+        for Qtree in self.mesh.gDict.values():
+            yield Qtree
+
+    def _grid_conf(self):
+        for Qtree in self.mesh.gDict.values():
+            yield Qtree.root.children[0].grids[0]
 
     def gen_x(self):
         for conf in self._iter_conf(self):
