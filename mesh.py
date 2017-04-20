@@ -14,7 +14,6 @@
    
 
 """
-##
 from basicMesh import mesh
 import numpy as np
 import pdb
@@ -55,9 +54,9 @@ class AdaptMesh(mesh):
             for leaf in leaves:
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                min_size = 0.4
-                if leaf.pos[0] < 6.0:min_size = 0.2
-                if leaf.pos[0] < 3.5:min_size = 0.0618
+                r = np.linalg.norm(leaf.pos)
+                if r  +  np.linalg.norm(leaf.size) < 2.0001: continue # 1.5**2
+                min_size = 0.1
                 if leaf.size[0] < min_size:
                     print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(leaf.pos[0], min_size,leaf.parent.error)+ '#'*4)
                     continue
