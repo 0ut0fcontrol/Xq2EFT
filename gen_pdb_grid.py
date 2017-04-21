@@ -28,7 +28,7 @@ calculator = EFT_calculator()
 # Please change the following code to whatever needed to generate the input 
 # coordinates files
 # Please make sure to carry the id number along with the results
-root = 'pdb.dat'
+root = 'grid.dat'
 if not os.path.exists(root):os.mkdir(root)
 def mol2mol_init(ele):
     mol = [[i,0.0,0.0,0.0] for i in ele]
@@ -36,7 +36,8 @@ def mol2mol_init(ele):
 size = 200
 folder_id = 0
 file_count = 0
-for idx, coors in calculator.gen_PDB(): 
+confs = alculator.grid._grid_conf()
+for idx, coors in calculator.gen_PDB(confs): 
 #for id, coors in calculator.gen_atomic_coors(0,10): 
     #print(idx, coors)
 

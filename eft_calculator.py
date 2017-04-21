@@ -121,10 +121,10 @@ class EFT_calculator:
         if q[1] < 0:
             q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
         # convert X, q to polar coordinates
-        r, phi, theta = tools.xyz2spherical(X)
+        #r, phi, theta = tools.xyz2spherical(X)
         # use the grid to obtain results
-        eft = self.grid.interpolate(np.array([r, phi, theta ]), q)
-        #eft = self.grid.interpolate(X, q)
+        #eft = self.grid.interpolate(np.array([r, phi, theta ]), q)
+        eft = self.grid.interpolate(X, q)
         ener = eft[0]
         force = eft[1:4]
         torque = eft[4:7]
@@ -157,9 +157,9 @@ class EFT_calculator:
             yield conf.idx, coors
     # Construct atomic coordinates for a pair from grid coordinate
     def _rq2Atomic(self, loc, q): # loc is (r, phi, theta)
-        r, phi, theta = loc
-        Xcom = tools.spherical2xyz(r, phi, theta) 
-        #Xcom = loc
+        #r, phi, theta = loc
+        #Xcom = tools.spherical2xyz(r, phi, theta) 
+        Xcom = loc
         log.write(' R:'+'%5.2f '*3%tuple(loc)+ ' Q:'+ '%5.2f '*4%tuple(q)+'\n')
         coor = self.mol.Xq2Atomic(Xcom, q)
         return np.concatenate((self.mol.refCoor, coor), axis=0)

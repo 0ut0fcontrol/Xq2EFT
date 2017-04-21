@@ -26,6 +26,7 @@ np.seterr(invalid='warn')
 
 # This dictionary is used by the findBranch function, to return the correct branch index
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
+DIRLOOKUP4 = {'--':0, '-+':1, '+-':2, '++':3}
 #### End Globals ####
 #E_HIGH = 100.0
 E_HIGH = 0.0 # default value set as 0.0 maybe more retionable
@@ -183,10 +184,12 @@ class Octree:
         return npstr
 
 
-## ---------------------------------------------------------------------------------------------------##
+#########################################################################################
 class Qtree(Octree):
-    def __init__(self, idx, pos):
-        Octree.__init__(self, idx, pos, 16*3.14, 'C') #There 4 sphere in  root ^_^
+    def __init__(self, idx, xyz):
+        # {} is to save sphere ndx
+        Octree.__init__(self, idx, {}, 16*3.14, 'C') #There 4 sphere in  root ^_^
+        self.xyz = xyz
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
@@ -234,7 +237,7 @@ class Qtree(Octree):
                 if npstr in self.gDict:
                     grid = self.gDict[npstr]
                 else:
-                    grid = conf(idx, tuple(self.pos), tuple(q)) 
+                    grid = conf(idx, self.xyz, q) 
                     CONFS.append(grid)
                     self.gDict[npstr] = grid
                     self.allgrids[grid.idx]=grid
@@ -248,7 +251,7 @@ class Qtree(Octree):
             if npstr in self.gDict:
                 grid = self.gDict[npstr]
             else:
-                grid = conf(idx, tuple(self.pos), tuple(q)) 
+                grid = conf(idx, self.xyz, q) 
                 CONFS.append(grid)
                 self.gDict[npstr] = grid
                 self.allgrids[grid.idx]=grid
@@ -318,23 +321,20 @@ class Qtree(Octree):
         return q
 
 
-class Rtree(Octree):
-    def __init__(self, idx, symmetry=2):
-        self.r_size = (7.-2.)*(2.-GOLDEN)
-        Octree.__init__(self, idx, np.array([2+self.r_size, 0., np.pi/2.]), # centre, r, phi, theta
-                                    np.array([self.r_size, np.pi/2., np.pi/2.]), 'Q') # size and rotation level idx
+class Sphere:
+    def __init__(self, idx, r, next_level_id='Q'):
+        self.r = r
+        self.idx = idx
+        self.nID = next_level_id
+        self.allnodes = {}
+        self.allgrids = {}
+        self.gDict = dict()
+        self.root = Node(idx, r, 4*np.pi*r, leaf_num= 6)
+        self.allnodes[self.root.idx] = self.root
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
-#        for i in self.root.children:
-#            if i is not None:self.subdivideNode(i)
-    def _sph2xyz(self, sph):
-        r,phi,theta = sph
-        x = r * np.cos(phi) * np.cos(theta)
-        y = r * np.cos(phi) * np.sin(theta)
-        z = r * np.sin(phi)
-        return (x,y,z)
-
+    
     def fill(self, idx, values):
         """fill conf after generation 
         """
@@ -347,106 +347,192 @@ class Rtree(Octree):
             self.allgrids[grid_idx].fill(idx, values)
         else:
             raise Exception("Con't fill conf %s\n"%(idx))
-
-    def _grid_positions_golden(self,node,offset=None):
-        if offset is None:offset = node.size
-        offsets = np.array([[-offset[0],-offset[1],-offset[2]],
-                            [-offset[0],-offset[1],+offset[2]],
-                            [-offset[0],+offset[1],-offset[2]],
-                            [-offset[0],+offset[1],+offset[2]],
-                            [+offset[0]*GOLDEN,-offset[1],-offset[2]],
-                            [+offset[0]*GOLDEN,-offset[1],+offset[2]],
-                            [+offset[0]*GOLDEN,+offset[1],-offset[2]],
-                            [+offset[0]*GOLDEN,+offset[1],+offset[2]]
-                             ])  
-        return node.pos + offsets
-
-    def _newCentre_golden(self,node):
-        offset = (node.size[0] * (GOLDEN-1.), node.size[1]*0.5, node.size[2]*0.5)
-        return self._grid_positions(node,offset)
 
     def subdivideNode(self, parent):
         parent.isLeafNode = False
         self.leafNodes.remove(parent)
-        newCentre = self._newCentre_golden(parent)
         if parent is self.root:
-            for key in DIRLOOKUP:
-                if key[1] == '-': continue
-                i = DIRLOOKUP[key]
-                if i < 4:
-                    size_factor = (2.-GOLDEN, 0.5, 0.5)
-                else:
-                    size_factor = (GOLDEN - 1., 0.5, 0.5)
-                child = Node(parent.idx + str(i), pos=newCentre[i], 
-                             size = parent.size * size_factor, leaf_num= 8)
+            # +x, +y, +z, -x, -y, -z 
+            #signs = [1., 1., 1., -1., -1.,-1. ]
+            num = 4 # sym = 2
+            #num = 6 # no sym 
+            for i in range(num):
+                child = Node(parent.idx + str(i), np.array([0., 0.]), 
+                             np.array([np.pi/4., np.pi/4.]), 4)
                 parent.children[i] = child
+                self.leafNodes.add(child)
+                self.allnodes[child.idx] = child
+                child.parent = parent
+                self.subdivideNode(child)
+            return
         else:
-            for i in range(8):
-                if i < 4:
-                    size_factor = (2.-GOLDEN, 0.5, 0.5)
-                else:
-                    size_factor = (GOLDEN - 1., 0.5, 0.5)
-                child = Node(parent.idx + str(i), pos=newCentre[i], 
-                             size = parent.size * size_factor, leaf_num= 8)
+            newCentre = self._newCentre(parent)
+            for i in range(4):
+                xyz = self._ndx2xyz(parent.idx, newCentre[i])
+                if xyz[1] <  -0.00001 or xyz[2] <  -0.00001: continue
+                child = Node(parent.idx + str(i), pos=newCentre[i],
+                             size = parent.size/2.0, leaf_num= 4)
                 parent.children[i] = child
-        for i in range(8):
+                self.leafNodes.add(child)
+                self.allnodes[child.idx] = child
+
+        for i in range(4):
             child = parent.children[i]
-            if child is None:continue
-            self.leafNodes.add(child)
-            self.allnodes[child.idx] = child
-            for j, pos in enumerate(self._grid_positions_golden(child)):
+            if child is None: continue
+            for j, ndx in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
-                xyz = self._sph2xyz(pos)
+                xyz = self._ndx2xyz(child.idx, ndx)
                 npstr = self._np2str(xyz)
-                if npstr not in self.gDict:
-                    self.gDict[npstr] = Qtree(idx, pos)
-                grid = self.gDict[npstr]
-                self.allgrids[grid.idx]=grid
+                grid = None
+                if npstr in self.gDict:
+                    grid = self.gDict[npstr]
+                else:
+                    grid = Qtree(idx, xyz)
+                    self.gDict[npstr] = grid
+                    self.allgrids[grid.idx]=grid
+                grid.pos[idx] = ndx
                 child.grids.append(grid)
-            xyz = self._sph2xyz(child.pos)
-            npstr = self._np2str(xyz)
             idx = child.idx+'%s8'%(self.nID)
-            if npstr not in self.gDict:
-                self.gDict[npstr] = Qtree(idx, child.pos)
-            grid = self.gDict[npstr]
-            self.allgrids[idx]=grid
+            xyz = self._ndx2xyz(child.idx, child.pos)
+            npstr = self._np2str(xyz)
+            if npstr in self.gDict:
+                grid = self.gDict[npstr]
+            else:
+                grid = Qtree(idx, xyz)
+                self.gDict[npstr] = grid
+                self.allgrids[grid.idx]=grid
             child.testgrid.append(grid)
             child.parent = parent
-
-    def interpolation(self, pos, q, node=None, neighbors=None):
-        #if np.dot(pos, pos) < DIST_CUTOFF:
-        #    return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
-        #if np.dot(pos, pos) >  144.0:
-        #    return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
-        #if node is None: node = self.root.children[self.findChild(self.root, self._sph2xyz(pos))]
-        if node is None: node = self.root
-        if neighbors is None: neighbors = self.findNeighbors(node, pos)
-        ndim = len(pos)        
-        v = np.zeros((8,ndim + 7))
-        #print('#'*4 +"interp pos is %.5f %.5f %.5f"%tuple(pos)+ '#'*4)
-        for i in range(8):
-            v[i,0:ndim] = neighbors[i].pos
-            #print(neighbors[i].idx + ' %.5f'*3%tuple(neighbors[i].pos))
+    
+    def interpolation(self, xyz, q, node=None, neighbors=None):
+        cubeID, ndx = self._xyz2ndx(xyz)
+        if node is None:
+            node = self.root.children[cubeID]
+        if neighbors is None:
+            if not node.isLeafNode:
+                node = self.inWhichNode(node, ndx)
+            neighbors = node.grids
+        ndim = len(ndx)
+        v = np.zeros((4,ndim + 7))
+        for i in range(4):
+            v[i,0:ndim] = neighbors[i].pos[node.idx+'%s%d'%(self.nID,i)]
             v[i,ndim:] = neighbors[i].interpolation(q)
+
         for dim in range(ndim):
             vtx_delta = 2**(ndim - dim - 1)
             for vtx in range(vtx_delta):
-                v[vtx, ndim:] += ((v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
-                    (pos[dim] - v[vtx,dim])/ (v [vtx + vtx_delta, dim] - v[vtx, dim])
+                #if np.abs(v[vtx + vtx_delta, dim] - v[vtx, dim]) < 0.000001:
+                   # pdb.set_trace()
+                    #print(ndx[dim], v[vtx,dim],v[vtx + vtx_delta, dim])
+                v[vtx, ndim:] += (  (v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
+                    (ndx[dim] - v[vtx,dim])/ (v[vtx + vtx_delta, dim] - v[vtx, dim])
                     )
         return v[0,ndim:]
+                
+    def addNode(self, idx):
+        node_idx = idx.split(self.nID)[0]
+        if node_idx in self.allnodes:return
+        idxs = ''
+        while node_idx not in self.allnodes:
+            idxs = node_idx[-1]+ idxs
+            node_idx = node_idx[:-1]
+        for i in idxs:
+            if self.allnodes[node_idx].isLeafNode:
+                self.subdivideNode(self.allnodes[node_idx])
+            node_idx += i
 
-class Xtree(Octree):
-    def __init__(self, idx, symmetry=2):
-        Octree.__init__(self,idx,
-                        np.array([0., 0., 0.]), np.array([12., 12., 12.]), 'Q') # size and rotation level idx
+    def _grid_positions(self,node,offset=None):
+        if offset is None:offset = node.size
+
+        offsets = np.array([[-offset[0],-offset[1]],
+                            [-offset[0],+offset[1]],
+                            [+offset[0],-offset[1]],
+                            [+offset[0],+offset[1]]
+                            ]) 
+        return node.pos + offsets
+
+    def _newCentre(self,node):
+        offset = node.size/2.0
+        return self._grid_positions(node,offset)
+        
+    def findNeighbors(self, node, vector):
+        leaf = self.inWhichNode(node, vector)
+        return leaf.grids
+
+    def inWhichNode(self, node, vector):
+        _neighbor = None
+        if node == None:
+            return None  
+        elif node.isLeafNode:
+            return node
+        else:
+            if len(vector) == 3 and node is self.root:
+                child, vector = self._xyz2ndx
+                node = self.root
+            else:
+                child = self.findChild(node, vector)
+            return self.inWhichNode(node.children[child],vector)
+            
+    def findChild(self, node, vector):
+        key = ''
+        for i in range(2):
+            if vector[i] >= node.pos[i]:
+                key += '+'
+            else:
+                key += '-'
+        return DIRLOOKUP4[key]
+
+    def _ndx2xyz(self, cubeID, ndx):
+        cubeID = str(cubeID)
+        cubeID = cubeID.replace(self.idx,'')[0]
+        cubeID = int(cubeID)
+        ndx = np.tan(ndx)
+        sign = 1.
+        if cubeID > 2:sign = -sign
+        cubeID %= 3
+        _xyz = np.insert(ndx, cubeID, sign)
+        _xyz /= np.linalg.norm(_xyz)
+        _xyz *= self.r
+        return _xyz
+    
+    def _xyz2ndx(self, xyz, r = None):
+        _xyz = np.copy(xyz)
+        _xyz /= np.linalg.norm(_xyz)
+        cubeID = np.abs(_xyz).argmax()
+        if _xyz[cubeID] < 0.:
+            _xyz /=  - _xyz[cubeID]
+            ndx = np.delete(_xyz, cubeID)
+            cubeID += 3
+        else:
+            _xyz /=  _xyz[cubeID]
+            ndx = np.delete(_xyz, cubeID)
+        ndx = np.arctan(ndx)
+        return cubeID, ndx
+
+    def _np2str(self, q):
+        npstr = ''
+        for i in q:
+            if i  < 0.0000001 and i> -0.0000001:i += 0.0000001
+            npstr += 'N%.5f'%(i)
+        return npstr
+
+class Rtree:
+    def __init__(self, idx, pos, size, next_level_id='S'):
+        self.idx = idx
+        self.pos = pos
+        self.size = size
+        self.nID = next_level_id
+        self.allnodes = {}
+        self.allgrids = {}
+        self.gDict = dict()
+        self.root = Node(idx, pos, size, leaf_num= 2)
+        self.allnodes[self.root.idx] = self.root
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
-#        for i in self.root.children:
-#            if i is not None:self.subdivideNode(i)
-
-
+        for child in self.root.children:
+            self.subdivideNode(child)
+    
     def fill(self, idx, values):
         """fill conf after generation 
         """
@@ -455,82 +541,115 @@ class Xtree(Octree):
         self.addNode(idx)
         # if idx:wtrR0Q2C7, grid_idx::wtrR0 or wtrR0Q2
         grid_idx = idx[ :idx.find(self.nID) + 2]
-        #print(grid_idx)
-        #print(self.allgrids)
         if grid_idx in self.allgrids:
             self.allgrids[grid_idx].fill(idx, values)
         else:
             raise Exception("Con't fill conf %s\n"%(idx))
 
-    def interpolation(self, pos, q, node=None, neighbors=None):
-        #if np.dot(pos, pos) < DIST_CUTOFF:
-        #    return np.array([100.0,100.0,100.0,100.0,100.0,100.0,100.0])
-        #if np.dot(pos, pos) >  144.0:
-        #    return np.array([0.0,0.0,0.0,0.0,0.0,0.0,0.0])
-        if node is None: node = self.root
-        if neighbors is None: neighbors = self.findNeighbors(node, pos)
-        ndim = len(pos)        
-        v = np.zeros((8,ndim + 7))
-        #print('#'*4 +"interp pos is %.5f %.5f %.5f"%tuple(pos)+ '#'*4)
-        for i in range(8):
-            v[i,0:ndim] = neighbors[i].pos
-            #print(neighbors[i].idx + ' %.5f'*3%tuple(neighbors[i].pos))
-            v[i,ndim:] = neighbors[i].interpolation(q)
-        for dim in range(ndim):
-            vtx_delta = 2**(ndim - dim - 1)
-            for vtx in range(vtx_delta):
-                v[vtx, ndim:] += ((v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
-                    (pos[dim] - v[vtx,dim])/ (v [vtx + vtx_delta, dim] - v[vtx, dim])
-                    )
-        return v[0,ndim:]
-    
     def subdivideNode(self, parent):
         parent.isLeafNode = False
         self.leafNodes.remove(parent)
         newCentre = self._newCentre(parent)
-        if parent is self.root:
-            keys = []
-            for k in DIRLOOKUP.keys():
-                if '-' in k[1]:continue
-                if '-' in k[2]:continue
-                keys.append(k)
-            for k in keys:
-                i = DIRLOOKUP[k]
-                child = Node(parent.idx + str(i), pos=newCentre[i], 
-                             size = parent.size/2.0, leaf_num= 8)
-                parent.children[i] = child
-        else:
-            for i in range(8):
-                child = Node(parent.idx + str(i), pos=newCentre[i], 
-                             size = parent.size/2.0, leaf_num= 8)
-                parent.children[i] = child
-        for i in range(8):
-            child = parent.children[i]
-            if child is None:continue
+        for i in range(2):
+            child = Node(parent.idx + str(i), pos=newCentre[i], 
+                         size = parent.size/2.0, leaf_num= 2)
+            parent.children[i] = child
+            child.parent = parent
             self.leafNodes.add(child)
             self.allnodes[child.idx] = child
-            for j, pos in enumerate(self._grid_positions(child)):
+            for j, r in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
-                npstr = self._np2str(pos)
-                if npstr not in self.gDict:
-                    self.gDict[npstr] = Qtree(idx, pos)
-                grid = self.gDict[npstr]
-                self.allgrids[grid.idx]=grid
+                npstr = self._np2str(r)
+                grid = None
+                if npstr in self.gDict:
+                    grid = self.gDict[npstr]
+                else:
+                    grid = Sphere(idx, r)
+                    self.gDict[npstr] = grid
+                    self.allgrids[grid.idx]=grid
                 child.grids.append(grid)
-            idx = child.idx+'%s8'%(self.nID)
-            npstr = self._np2str(child.pos)
-            if npstr not in self.gDict:
-                self.gDict[npstr] = Qtree(idx, child.pos)
+        idx = parent.idx+'%s8'%(self.nID)
+        r = parent.pos
+        npstr = self._np2str(r)
+        if npstr in self.gDict:
             grid = self.gDict[npstr]
+        else:
+            grid = Sphere(idx, r)
+            self.gDict[npstr] = grid
             self.allgrids[grid.idx]=grid
-            child.testgrid.append(grid)
-            child.parent = parent
+        parent.testgrid.append(grid)
+
+    def interpolation(self, xyz, q, node=None, neighbors=None):
+        if node is None:
+            node = self.root
+        r = np.linalg.norm(xyz)
+        if neighbors is None:
+            if not node.isLeafNode:
+                node = self.inWhichNode(node, r)
+            neighbors = node.grids
+        v0 = neighbors[0].interpolation(xyz, q)
+        v1 = neighbors[1].interpolation(xyz, q)
+        w0 = r - neighbors[0].r
+        w = neighbors[1].r - neighbors[0].r
+        value = v0 + (v1-v0) * (w0/w)
+        return value
+
+    def addNode(self, idx):
+        node_idx = idx.split(self.nID)[0]
+        if node_idx in self.allnodes:return
+        idxs = ''
+        while node_idx not in self.allnodes:
+            idxs = node_idx[-1]+ idxs
+            node_idx = node_idx[:-1]
+        for i in idxs:
+            if self.allnodes[node_idx].isLeafNode:
+                self.subdivideNode(self.allnodes[node_idx])
+            node_idx += i
+
+    def _grid_positions(self,node,offset=None):
+        if offset is None:offset = node.size
+        offsets = np.array([-offset,+offset]) 
+        return node.pos + offsets
+
+    def _newCentre(self,node):
+        offset = node.size/2.0
+        return self._grid_positions(node,offset)
+        
+    def findNeighbors(self, node, vector):
+        leaf = self.inWhichNode(node, vector)
+        return leaf.grids
+
+    def inWhichNode(self, node, vector):
+        _neighbor = None
+        if node == None:
+            return None  
+        elif node.isLeafNode:
+            return node
+        else:
+            child = self.findChild(node, vector)
+            return self.inWhichNode(node.children[child],vector)
+            
+    def findChild(self, node, vector):
+        if vector >= node.pos:
+            return 1
+        else:
+            return 0
+
+    def _np2str(self, i):
+        npstr = ''
+        if i  < 0.0000001 and i> -0.0000001:i += 0.0000001
+        npstr += 'N%.5f'%(i)
+        return npstr
+
+
+
+
 ################### Above: basic tree, node, grid(conf) class ######################
 ################### Below: basic mesh class ########################################
 import pickle
 class  mesh:
     def __init__(self):
-        self.mesh = Rtree('wtr_wtrR')
+        self.mesh = Rtree('wtr_wtrR', 7.0, 5.0)
         self.confs = set()
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)
@@ -560,8 +679,8 @@ class  mesh:
             conf.values =  f(conf.loc, conf.q)
         #self.save(confs)
         
-    def interpolate(self, R, q):
-        return self.mesh.interpolation(R, q)
+    def interpolate(self, X, q):
+        return self.mesh.interpolation(X, q)
 
     def load(self, filename):
         load_count = 0
@@ -585,41 +704,54 @@ class  mesh:
             for conf in confs:
                 conf_str='%s'%(conf.idx) + ' %f'*7%tuple(conf.values) + '\n'
                 f.write(conf_str)
-    def _iter_grid(self):
-        for Qtree in self.mesh.gDict.values():
-            yield Qtree
-
-    def _grid_conf(self):
-        for Qtree in self.mesh.gDict.values():
-            yield Qtree.root.children[0].grids[0]
 
     def gen_x(self):
         for conf in self._iter_conf(self):
             yield (conf.loc, conf.q)
     
-    def _iter_conf(self):
-        for Qtree in self.mesh.gDict.values():
-            for conf in Qtree.gDict.values():
-                yield conf
-    def _iter_grid(self):
-        for Qtree in self.mesh.gDict.values():
-            yield Qtree
+    def _iter_conf(self, node=None):
+        if hasattr(node, 'q'): # type is conf
+            yield node
+        if node is None: node = self.mesh
+        if hasattr(node, 'gDict'):
+            for n in node.gDict.values():
+                for c in self._iter_conf(n):
+                    yield c
+        if hasattr(node, '__len__'):
+            for n in node:
+                for c in self._iter_conf(n):
+                    yield c
 
     def _grid_conf(self):
-        for Qtree in self.mesh.gDict.values():
+        for Qtree in self.Qtrees():
             yield Qtree.root.children[0].grids[0]
 
     def QLeafNodes(self):
-        for RNode in self.RLeafNodes():
-            for Qtree in RNode.grids:
-                for n in Qtree.leafNodes:
-                    n.tree = Qtree
-                    yield n
+        for Qtree in self.Qtrees():
+            for n in Qtree.leafNodes:
+                n.tree = Qtree
+                yield n
+
+    def SLeafNodes(self):
+        for Stree in self.Strees():
+            for n in Stree.leafNodes:
+                n.tree = Stree
+                yield n
 
     def RLeafNodes(self):
         for n in self.mesh.leafNodes:
             n.tree = self.mesh
             yield n
+
+    def Qtrees(self):
+        for Stree in self.mesh.gDict.values():
+            for Qtree in Stree.gDict.values():
+                yield Qtree
+            
+    def Strees(self):
+        return self.mesh.gDict.values()
+        
+    
         
             
         

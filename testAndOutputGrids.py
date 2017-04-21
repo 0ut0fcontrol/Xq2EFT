@@ -147,7 +147,7 @@ def randomSample():
         file_count += 1
 
 def grids_conf():
-    root = 'grids.dat'
+    root = figname[:-4] + '.grids.dat' 
     if not os.path.exists(root):os.mkdir(root)
     def mol2mol_init(ele):
         mol = [[i,0.0,0.0,0.0] for i in ele]
