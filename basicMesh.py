@@ -193,7 +193,7 @@ class Qtree(Octree):
         self.leafNodes = set()
         self.leafNodes.add(self.root)
         self.subdivideNode(self.root)
-        #for i in range(4): self.subdivideNode(self.root.children[i])
+        for i in range(4): self.subdivideNode(self.root.children[i])
         #self.fill(self.root.children[0].idx+'111111C7',0.0)
 
     def fill(self, idx, values):
@@ -227,6 +227,7 @@ class Qtree(Octree):
         
         for i in range(childnum):
             child = parent.children[i]
+            child.parent = parent
             self.leafNodes.add(child)
             self.allnodes[child.idx] = child
             for j, pos_ndx in enumerate(self._grid_positions(child)):
@@ -245,19 +246,19 @@ class Qtree(Octree):
                 grid.pos[idx] = pos_ndx
                 child.grids.append(grid)
             # add testgrid
-            idx = child.idx+'%s8'%(self.nID)
-            q = self._ndx2q(child.idx, child.pos)
-            npstr = self._np2str(q)
-            if npstr in self.gDict:
-                grid = self.gDict[npstr]
-            else:
-                grid = conf(idx, self.xyz, q) 
-                CONFS.append(grid)
-                self.gDict[npstr] = grid
-                self.allgrids[grid.idx]=grid
-                self.allgrids[grid.idx] = grid
-            child.testgrid.append(grid)
-            child.parent = parent
+        if parent is self.root: return
+        idx = parent.idx+'%s8'%(self.nID)
+        q = self._ndx2q(parent.idx, parent.pos)
+        npstr = self._np2str(q)
+        grid = None
+        if npstr in self.gDict:
+            grid = self.gDict[npstr]
+        else:
+            grid = conf(idx, self.xyz, q) 
+            CONFS.append(grid)
+            self.gDict[npstr] = grid
+            self.allgrids[grid.idx]=grid
+        parent.testgrid.append(grid)
         #self.iterateGrid()
         #self.iterateNode()
         #parent.testgrid.append(self.grepGrid(self._ndx2q(parent.idx, parent.pos)))
@@ -379,6 +380,7 @@ class Sphere:
         for i in range(4):
             child = parent.children[i]
             if child is None: continue
+            child.parent = parent
             for j, ndx in enumerate(self._grid_positions(child)):
                 idx = child.idx+'%s%d'%(self.nID,j)
                 xyz = self._ndx2xyz(child.idx, ndx)
@@ -392,17 +394,17 @@ class Sphere:
                     self.allgrids[grid.idx]=grid
                 grid.pos[idx] = ndx
                 child.grids.append(grid)
-            idx = child.idx+'%s8'%(self.nID)
-            xyz = self._ndx2xyz(child.idx, child.pos)
-            npstr = self._np2str(xyz)
-            if npstr in self.gDict:
-                grid = self.gDict[npstr]
-            else:
-                grid = Qtree(idx, xyz)
-                self.gDict[npstr] = grid
-                self.allgrids[grid.idx]=grid
-            child.testgrid.append(grid)
-            child.parent = parent
+        idx = parent.idx+'%s8'%(self.nID)
+        xyz = self._ndx2xyz(parent.idx, parent.pos)
+        npstr = self._np2str(xyz)
+        grid = None
+        if npstr in self.gDict:
+            grid = self.gDict[npstr]
+        else:
+            grid = Qtree(idx, xyz)
+            self.gDict[npstr] = grid
+            self.allgrids[grid.idx]=grid
+        parent.testgrid.append(grid)
     
     def interpolation(self, xyz, q, node=None, neighbors=None):
         cubeID, ndx = self._xyz2ndx(xyz)

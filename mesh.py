@@ -55,21 +55,36 @@ class AdaptMesh(mesh):
             parents = [ leaf.parent for leaf in leaves]
             leaves = set(parents)
             for leaf in leaves:
+                tree = leaf.children[0].tree
+                if leaf.pos - leaf.size <= 6:
+                    if leaf.size > 0.8:
+                        for child in leaf.children:
+                            if child.isLeafNode:
+                                tree.subdivideNode(child)
+                        fine = False
+                        continue
+                if leaf.pos - leaf.size <= 3.5:
+                    if leaf.size > 0.2:
+                        for child in leaf.children:
+                            if child.isLeafNode:
+                                tree.subdivideNode(child)
+                        fine = False
+                        continue
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                min_size = 0.05
+                min_size = 0.2
                 if leaf.size < min_size:
                     print('\n#'*4 + 'R node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(
                             leaf.pos, min_size, leaf.parent.error)+ '#'*4)
                     continue
-                tree = leaf.children[0].tree
                 node_err = 0.
                 print("There are ")
                 testgrids = tuple(self._iter_conf(leaf.testgrid))
                 print(leaf.testgrid)
                 print(" %d conf is Sphere, total %d conf"%(len(testgrids), len(oldconfs)))
                 for g in testgrids:
-                    g_iterp = tree.interpolation(g.loc, g.q, node=leaf, neighbors=leaf.grids)
+                    #g_iterp = tree.interpolation(g.loc, g.q, node=leaf, neighbors=leaf.grids)
+                    g_iterp = tree.interpolation(g.loc, g.q, node=leaf)
                     err = np.abs(g_iterp - g.values)
                     #print('iterp value:%f, values: %f'%(g_iterp[0], g.values[0]))
                     err = err[0]
@@ -79,18 +94,19 @@ class AdaptMesh(mesh):
                 if node_err < leaf.error: leaf.error = node_err
                 if leaf.error > self.E_CUTOFF:
                     printStr=("max  error  is %5.2f\n"%(leaf.error)+
-                               "c onf:% 15s"%( self.max_err_conf.idx)+
+                                "c onf:% 15s"%( self.max_err_conf.idx)+
                               " %5.2f"*3%tuple(self.max_err_conf.loc)+
                               " %5.2f"*4%tuple(self.max_err_conf.q) +
                               '\n' +
                               "size of S node %6.3f\n"%(leaf.size) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               )   
+                                )    
 
                     print(printStr)
                     for child in leaf.children:
-                        tree.subdivideNode(child)
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
                     fine = False 
             self.confs.update(self._iter_conf())
             newconfs = self.confs.difference(oldconfs)
@@ -108,10 +124,29 @@ class AdaptMesh(mesh):
             self.R_refine_count += 1
             fine = True
             leaves = tuple(self.SLeafNodes())
+            parents = [ leaf.parent for leaf in leaves]
+            leaves = set(parents)
             for leaf in leaves:
                 if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                tree = leaf.tree
+                tree = None
+                for child in leaf.children:
+                    if child is not None:
+                        if child.isLeafNode:
+                            tree = child.tree
+                            break
+                if tree.r < 6. and leaf.size[0] > np.pi/5.:
+                    for child in leaf.children:
+                        if child is None: continue
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
+                if tree.r <3.5 and leaf.size[0] > np.pi/9.:
+                    for child in leaf.children:
+                        if child is None: continue
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
+                    fine = False
+                    continue
                 tree_grid_max = 100
                 if len(tree.gDict) > tree_grid_max:
                     print('\n'+ '#'*4 + 'S node in %8.5f A Esacape for grids num > %d, Node.error:%8.3f'%(
@@ -125,7 +160,8 @@ class AdaptMesh(mesh):
                 node_err = 0.
                 testgrids = self._iter_conf(leaf.testgrid)
                 for g in testgrids:
-                    g_iterp = tree.interpolation(g.loc, g.q, node=leaf, neighbors=leaf.grids)
+                    #g_iterp = tree.interpolation(g.loc, g.q, node=leaf, neighbors=leaf.grids)
+                    g_iterp = tree.interpolation(g.loc, g.q, node=leaf)
                     err = np.abs(g_iterp - g.values)
                     err = err[0]
                     if err > node_err:
@@ -141,9 +177,12 @@ class AdaptMesh(mesh):
                               "size of S node %6.3f\n"%(leaf.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               )   
+                                )   
                     print(printStr) 
-                    tree.subdivideNode(leaf)
+                    for child in leaf.children:
+                        if child is None: continue
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
                     fine = False 
             self.confs.update(self._iter_conf())
             newconfs = self.confs.difference(oldconfs)
@@ -161,11 +200,24 @@ class AdaptMesh(mesh):
             self.R_refine_count += 1
             fine = True
             leaves = tuple(self.QLeafNodes())
+            parents = [ leaf.parent for leaf in leaves]
+            leaves = set(parents)
             for leaf in leaves:
-                if leaf.error < self.E_CUTOFF: continue
                 # I want to restrict the density in very close
-                tree = leaf.tree
+                if leaf.error < self.E_CUTOFF: continue
+                tree = None
+                for child in leaf.children:
+                    if child.isLeafNode:
+                        tree = child.tree
+                        break
 
+                if len(tree.gDict) < 300:
+                    for child in leaf.children:
+                        if child is None: continue
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
+                    fine = False
+                    continue
                 tree_grid_max = 500
                 if len(tree.gDict) > tree_grid_max:
                     r = np.linalg.norm(tree.xyz)
@@ -181,7 +233,8 @@ class AdaptMesh(mesh):
                 node_err = 0.
                 testgrids = self._iter_conf(leaf.testgrid)
                 for g in testgrids:
-                    g_iterp = tree.interpolation(g.q, node=leaf, neighbors=leaf.grids)
+                    #g_iterp = tree.interpolation(g.q, node=leaf, neighbors=leaf.grids)
+                    g_iterp = tree.interpolation(g.q, node=leaf)
                     err = np.abs(g_iterp - g.values)
                     err = err[0]
                     if err > node_err:
@@ -197,9 +250,12 @@ class AdaptMesh(mesh):
                               "size of Q node %6.3f\n"%(leaf.size[0]) +
                               "conf values is " +
                               " %5.2f"*7%tuple(self.max_err_conf.values)
-                               )    
+                                )    
                     print(printStr) 
-                    tree.subdivideNode(leaf)
+                    for child in leaf.children:
+                        if child is None: continue
+                        if child.isLeafNode:
+                            tree.subdivideNode(child)
                     fine = False 
             self.confs.update(self._iter_conf())
             newconfs = self.confs.difference(oldconfs)
