@@ -23,7 +23,7 @@ import numpy as np
 import pdb
 np.seterr(invalid='warn')
 
-
+ORDER = 2
 # This dictionary is used by the findBranch function, to return the correct branch index
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 DIRLOOKUP4 = {'--':0, '-+':1, '+-':2, '++':3}
@@ -277,7 +277,8 @@ class Qtree(Octree):
             if not node.isLeafNode:
                 node = self.inWhichNode(node, ndx)
             neighbors = node.grids
-
+        if ORDER == 2 and  (None not in node.parent.children):
+            return self._interpolation2(ndx, node)
         ndim = len(ndx)        
         v = np.zeros((8,ndim + 7))
         for i in range(8):
@@ -293,6 +294,66 @@ class Qtree(Octree):
                     (ndx[dim] - v[vtx,dim])/ (v[vtx + vtx_delta, dim] - v[vtx, dim])
                     )
         return v[0,ndim:]
+
+    def _interpolation2(self, my_x,  node):
+        children = node.parent.children
+        grid_order = ((0,0),(0,1),(1,1),
+                      (0,2),(0,3),(1,3),
+                      (2,2),(2,3),(3,3),
+                      
+                      (0,4),(0,5),(1,5),
+                      (0,6),(0,7),(1,7),
+                      (2,6),(2,7),(3,7),
+                      
+                      (4,4),(4,5),(5,5),
+                      (4,6),(4,7),(5,7),
+                      (6,6),(6,7),(7,7)
+                      )
+        #   ___________
+        #  1|1  3|1   3|3
+        #   |  1 |  3  |
+        #   |0__2|0___2|
+        #   |1  3|1   3|
+        #   |  0 |  2  |
+        #  0|0__2|0___2|2
+        #
+        grids = []
+        gridIdx = []
+        for i, j in grid_order:
+            grids.append(children[i].grids[j])
+            gridIdx.append(children[i].idx + '%s%d'%(self.nID,j))
+        grids = np.reshape(grids,(3,3,3))
+        gridIdx = np.reshape(gridIdx,(3,3,3))
+        x_dim1 = []
+        y_dim1 = []
+        for i in range(3):
+            x_dim2 = []
+            y_dim2 = []
+            for j in range(3):
+                x_dim3 = []
+                y_dim3 = []
+                for k in range(3):
+                    x_dim3.append(grids[i][j][k].pos[gridIdx[i][j][k]][2])
+                    y_dim3.append(grids[i][j][k].values)
+                x_dim2.append(grids[i][j][0].pos[gridIdx[i][j][0]][1])
+                y_dim2.append(self._interp_1D(x_dim3, y_dim3, my_x[2]))
+            x_dim1.append(grids[i][0][0].pos[gridIdx[i][0][0]][0])
+            y_dim1.append(self._interp_1D(x_dim2, y_dim2, my_x[1]))
+        return self._interp_1D(x_dim1,y_dim1,my_x[0])
+    
+    def _interp_1D(self, xs, ys, my_x):
+        if len(xs) == 1:
+            return ys[0]
+        if len(xs) == 2:
+            x0, x1 = xs
+            y0, y1 = ys
+            return y0 + (my_x - x0) * (y1 - y0) / (x1 - x0)
+        if len(xs) == 3:
+            x0, x1, x2 = xs
+            y0, y1, y2 = ys
+            a1 = (y1 - y0) / (x1 - x0)
+            a2 = (y2 - y0 - a1 * (x2 - x0)) / (x2 - x0) / (x2 - x1)
+            return y0 + a1 * (my_x - x0) + a2 * (my_x - x0) * (my_x - x1)
 
     def _q2ndx(self, q):
         q = np.copy(q)
@@ -413,23 +474,74 @@ class Sphere:
         if neighbors is None:
             if not node.isLeafNode:
                 node = self.inWhichNode(node, ndx)
-            neighbors = node.grids
-        ndim = len(ndx)
-        v = np.zeros((4,ndim + 7))
-        for i in range(4):
-            v[i,0:ndim] = neighbors[i].pos[node.idx+'%s%d'%(self.nID,i)]
-            v[i,ndim:] = neighbors[i].interpolation(q)
-
-        for dim in range(ndim):
-            vtx_delta = 2**(ndim - dim - 1)
-            for vtx in range(vtx_delta):
-                #if np.abs(v[vtx + vtx_delta, dim] - v[vtx, dim]) < 0.000001:
-                   # pdb.set_trace()
-                    #print(ndx[dim], v[vtx,dim],v[vtx + vtx_delta, dim])
-                v[vtx, ndim:] += (  (v[vtx + vtx_delta, ndim:] - v[vtx, ndim:]) * 
-                    (ndx[dim] - v[vtx,dim])/ (v[vtx + vtx_delta, dim] - v[vtx, dim])
-                    )
-        return v[0,ndim:]
+        if ORDER == 1:
+            return self._interpolation1(ndx, q, node)
+        if ORDER == 2:
+            if None in node.parent.children:
+                return self._interpolation1(ndx, q, node)
+            return self._interpolation2(ndx, q, node)
+    
+    def _interpolation1(self, my_x, q, node):
+        neighbors1 = (node.grids[:2], node.grids[2:])
+        gridIdx  = [node.idx+'%s%d'%(self.nID,i) for i in range(4)]
+        gridIdx = (gridIdx[:2], gridIdx[2:])
+        x_dim1 = []
+        y_dim1 = []
+        for i in range(2):
+            x_dim2 = []
+            y_dim2 = []
+            for j in range(2):
+                x_dim2.append(neighbors1[i][j].pos[gridIdx[i][j]][1])
+                y_dim2.append(neighbors1[i][j].interpolation(q))
+            x_dim1.append(neighbors1[i][0].pos[gridIdx[i][0]][0])
+            y_dim1.append(self._interp_1D(x_dim2, y_dim2, my_x[1]))
+        return self._interp_1D(x_dim1,y_dim1,my_x[0])
+                
+    def _interpolation2(self, my_x, q, node):
+        children = node.parent.children
+        grid_order = ((0,0),(0,1),(1,1),
+                      (0,2),(0,3),(1,3),
+                      (2,2),(2,3),(3,3))
+        #   ___________
+        #  1|1  3|1   3|3
+        #   |  1 |  3  |
+        #   |0__2|0___2|
+        #   |1  3|1   3|
+        #   |  0 |  2  |
+        #  0|0__2|0___2|2
+        #
+        grids = []
+        gridIdx = []
+        for i, j in grid_order:
+            grids.append(children[i].grids[j])
+            gridIdx.append(children[i].idx + '%s%d'%(self.nID,j))
+        grids = (grids[:3],grids[3:6],grids[6:])
+        gridIdx = (gridIdx[:3],gridIdx[3:6],gridIdx[6:])
+        x_dim1 = []
+        y_dim1 = []
+        for i in range(3):
+            x_dim2 = []
+            y_dim2 = []
+            for j in range(3):
+                x_dim2.append(grids[i][j].pos[gridIdx[i][j]][1])
+                y_dim2.append(grids[i][j].interpolation(q))
+            x_dim1.append(grids[i][0].pos[gridIdx[i][0]][0])
+            y_dim1.append(self._interp_1D(x_dim2, y_dim2, my_x[1]))
+        return self._interp_1D(x_dim1,y_dim1,my_x[0])
+    
+    def _interp_1D(self, xs, ys, my_x):
+        if len(xs) == 1:
+            return ys[0]
+        if len(xs) == 2:
+            x0, x1 = xs
+            y0, y1 = ys
+            return y0 + (my_x - x0) * (y1 - y0) / (x1 - x0)
+        if len(xs) == 3:
+            x0, x1, x2 = xs
+            y0, y1, y2 = ys
+            a1 = (y1 - y0) / (x1 - x0)
+            a2 = (y2 - y0 - a1 * (x2 - x0)) / (x2 - x0) / (x2 - x1)
+            return y0 + a1 * (my_x - x0) + a2 * (my_x - x0) * (my_x - x1)
                 
     def addNode(self, idx):
         node_idx = idx.split(self.nID)[0]
@@ -588,13 +700,33 @@ class Rtree:
         if neighbors is None:
             if not node.isLeafNode:
                 node = self.inWhichNode(node, r)
+        if ORDER == 1:
             neighbors = node.grids
-        v0 = neighbors[0].interpolation(xyz, q)
-        v1 = neighbors[1].interpolation(xyz, q)
-        w0 = r - neighbors[0].r
-        w = neighbors[1].r - neighbors[0].r
-        value = v0 + (v1-v0) * (w0/w)
-        return value
+        if ORDER == 2:
+            children = node.parent.children
+            neighbors = (children[0].grids[0], children[0].grids[1], children[1].grids[1])
+        xs = []
+        ys = []
+        for n in neighbors:
+            xs.append(n.r)
+            ys.append(n.interpolation(xyz, q))
+        my_y = self._interp_1D(xs, ys, r)
+        return my_y
+
+    def _interp_1D(self, xs, ys, my_x):
+        if len(xs) == 1:
+            return ys[0]
+        if len(xs) == 2:
+            x0, x1 = xs
+            y0, y1 = ys
+            return y0 + (my_x - x0) * (y1 - y0) / (x1 - x0)
+        if len(xs) == 3:
+            x0, x1, x2 = xs
+            y0, y1, y2 = ys
+            a1 = (y1 - y0) / (x1 - x0)
+            a2 = (y2 - y0 - a1 * (x2 - x0)) / (x2 - x0) / (x2 - x1)
+            return y0 + a1 * (my_x - x0) + a2 * (my_x - x0) * (my_x - x1)
+
 
     def addNode(self, idx):
         node_idx = idx.split(self.nID)[0]
@@ -622,7 +754,6 @@ class Rtree:
         return leaf.grids
 
     def inWhichNode(self, node, vector):
-        _neighbor = None
         if node == None:
             return None  
         elif node.isLeafNode:
