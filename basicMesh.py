@@ -23,7 +23,7 @@ import numpy as np
 import pdb
 np.seterr(invalid='warn')
 
-ORDER = 2
+ORDER = 1
 # This dictionary is used by the findBranch function, to return the correct branch index
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 DIRLOOKUP4 = {'--':0, '-+':1, '+-':2, '++':3}

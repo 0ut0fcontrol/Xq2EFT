@@ -60,6 +60,7 @@ class Classical_calculator:
         return ener, force
 
 def test_random_set():
+    log = open(figname[:-4] + '.interp.log', 'w')
     e0 = []
     e1 = []
     fce0 = []
@@ -91,6 +92,7 @@ def test_random_set():
         trq1 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))
         all.append((-np.linalg.norm(np.array(fce0) - np.array(fce1)), name))
+        log.write("%s"%(name) + ' %.5f'*3 %(e0[-1], e1[-1], np.abs(e0[-1]-e1[-1])) + ' %.5f'*3%tuple(X1-X0) + '\n')
     t2 = time()
     print('took %.1f s to evaluate the random set' % (t2 - t1))
     heapq.heapify(all)
@@ -119,6 +121,7 @@ def test_random_set():
     axarr[2].scatter(trq0, trq1)
     axarr[2].text(0, 0, 'p=%.4f'%p)
     plt.savefig(figname)
+            
 
 def randomSample():
     root = 'golden.dat'
@@ -168,6 +171,10 @@ def grids_conf():
         pdb.write(coors)
         pdb.close()
         file_count += 1
+def Qtrees_ditri():
+    Qtrees = calculator.grid.Qtrees()
+    for Q in Qtrees:
+        print(Q.idx, len(Q.gDict))
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -193,4 +200,5 @@ if __name__ == '__main__':
     test_random_set()
     #randomSample()
     grids_conf()
+    Qtrees_ditri()
 
