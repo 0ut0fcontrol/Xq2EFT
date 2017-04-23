@@ -64,7 +64,7 @@ class AdaptMesh(mesh):
                         fine = False
                         continue
                 if leaf.pos - leaf.size <= 3.5:
-                    if leaf.size > 0.2:
+                    if leaf.size > 0.15:
                         for child in leaf.children:
                             if child.isLeafNode:
                                 tree.subdivideNode(child)
@@ -211,25 +211,26 @@ class AdaptMesh(mesh):
                         tree = child.tree
                         break
 
-                if len(tree.gDict) < 300:
+                if len(tree.gDict) < 100:
                     for child in leaf.children:
                         if child is None: continue
                         if child.isLeafNode:
                             tree.subdivideNode(child)
                     fine = False
                     continue
-                tree_grid_max = 500
-                if len(tree.gDict) > tree_grid_max:
-                    r = np.linalg.norm(tree.xyz)
-                    print('\n'+ '#'*4 + 'Q node in %8.5f A Esacape for grids num > %d, Node.error:%8.3f'%(
-                            r, tree_grid_max, leaf.parent.error)+ '#'*4)
-                    continue
-
-                min_size = np.pi/8.
-                #if leaf.size[0] < min_size:
-                #    print('\n#'*4 + 'Q node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(
-                #            r, min_size, leaf.parent.error)+ '#'*4)
+                #tree_grid_max = 500
+                #if len(tree.gDict) > tree_grid_max:
+                #    r = np.linalg.norm(tree.xyz)
+                #    print('\n'+ '#'*4 + 'Q node in %8.5f A Esacape for grids num > %d, Node.error:%8.3f'%(
+                #            r, tree_grid_max, leaf.parent.error)+ '#'*4)
                 #    continue
+
+                min_size = np.pi/16.
+                if leaf.size[0] < min_size:
+                    r = np.linalg.norm(tree.xyz)
+                    print('\n#'*4 + 'Q node in %8.5f A Esacape for size < %3.2f, Node.error:%8.3f'%(
+                            r, min_size, leaf.parent.error)+ '#'*4)
+                    continue
                 node_err = 0.
                 testgrids = self._iter_conf(leaf.testgrid)
                 for g in testgrids:

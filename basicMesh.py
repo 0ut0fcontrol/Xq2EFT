@@ -23,7 +23,7 @@ import numpy as np
 import pdb
 np.seterr(invalid='warn')
 
-ORDER = 1
+ORDER = 2
 # This dictionary is used by the findBranch function, to return the correct branch index
 DIRLOOKUP = {'+++':7, '-++':3, '--+':1, '+-+':5, '++-':6, '-+-':2, '---':0, '+--':4}
 DIRLOOKUP4 = {'--':0, '-+':1, '+-':2, '++':3}
@@ -664,9 +664,14 @@ class Rtree:
         parent.isLeafNode = False
         self.leafNodes.remove(parent)
         newCentre = self._newCentre(parent)
+        newSize = [parent.size/2., parent.size/2.]
+        if parent is self.root:
+            newSize[0] = 3.2
+            newSize[1] =  parent.size - newSize[0] 
+            newCentre = (parent.pos - newSize[0], parent.pos + newSize[1])
         for i in range(2):
             child = Node(parent.idx + str(i), pos=newCentre[i], 
-                         size = parent.size/2.0, leaf_num= 2)
+                         size = newSize[i], leaf_num= 2)
             parent.children[i] = child
             child.parent = parent
             self.leafNodes.add(child)
@@ -782,7 +787,7 @@ class Rtree:
 import pickle
 class  mesh:
     def __init__(self):
-        self.mesh = Rtree('wtr_wtrR', 7.0, 5.0)
+        self.mesh = Rtree('wtr_wtrR', 8.4, 5.0)
         self.confs = set()
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)

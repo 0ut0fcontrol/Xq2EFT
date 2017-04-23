@@ -92,7 +92,7 @@ def test_random_set():
         trq1 += list(eft[4:7])
         #all.append((-np.abs(e0[-1]-e1[-1]), name))
         all.append((-np.linalg.norm(np.array(fce0) - np.array(fce1)), name))
-        log.write("%s"%(name) + ' %.5f'*3 %(e0[-1], e1[-1], np.abs(e0[-1]-e1[-1])) + ' %.5f'*3%tuple(X1-X0) + '\n')
+        log.write("%s"%(name) + ' %.5f'*3 %(e0[-1], e1[-1], np.abs(e0[-1]-e1[-1])) + ' %.5f'%(np.linalg.norm(X1-X0)) + '\n')
     t2 = time()
     print('took %.1f s to evaluate the random set' % (t2 - t1))
     heapq.heapify(all)
@@ -193,12 +193,28 @@ if __name__ == '__main__':
         calculator = EFT_calculator()
     if len(sys.argv) == 4:
         error_cutoff = float(sys.argv[3])
-        print("set cutoff as %f"%(error_cutoff))
-        calculator.fill_grid(cc, databaseName, error_cutoff)
-    t1 = time()
-    print('took %.1f s to fill the grid' % (t1 - t0))
-    test_random_set()
-    #randomSample()
-    grids_conf()
-    Qtrees_ditri()
+        resotmp = [100, 50, 10, 2, 1, 0.5, 0.1]
+        reso = []
+        for i in resotmp:
+            if i >= error_cutoff: reso.append(i)
+        for i in reso:
+            error_cutoff = float(i)
+            databaseName = databaseName[:-4] +str(i)+ databaseName[-4:]
+            figname = figname[:-4] + str(i)+figname[-4:]
+            print("set cutoff as %f"%(error_cutoff))
+            calculator.fill_grid(cc, databaseName, error_cutoff)
+
+            t1 = time()
+            print('took %.1f s to fill the grid' % (t1 - t0))
+            test_random_set()
+            #randomSample()
+            grids_conf()
+            Qtrees_ditri()
+    else:
+        t1 = time()
+        print('took %.1f s to fill the grid' % (t1 - t0))
+        test_random_set()
+        #randomSample()
+        grids_conf()
+        Qtrees_ditri()
 
