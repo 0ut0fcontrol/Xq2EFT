@@ -23,7 +23,11 @@ class Grid:
     def __init__(self):
         self.headNode = None
         self.n = None
-        self.rs = np.concatenate((np.linspace(2.0, 3.5, 15), np.linspace(3.5, 6.0, 9)[1:], np.linspace(6.0, 12.0, 8)[1:]))
+        # wtr-wtr
+        #self.rs = np.concatenate((np.linspace(2.0, 3.5, 15), np.linspace(3.5, 6.0, 9)[1:], np.linspace(6.0, 12.0, 8)[1:]))
+        
+        self.rs = np.concatenate((np.linspace(2.0, 3.8, 18), np.linspace(3.8, 4.7, 4)[1:], 
+                                  np.linspace(5.0, 7.0, 5),  np.linspace(7.0, 12.0, 6)[1:]))
         self.ang_params = (0.20, 0.45, 3.8, 0.4)
         self.ori_params = (0.23, 0.45, 3.8, 0.4)
     
