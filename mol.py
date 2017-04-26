@@ -106,7 +106,7 @@ class Mol:
         return pdb
         
     # Given Xcom and q, rebuild the atomic coordinates in PDB format
-    def Xq2PDB(self, Xcom=(0.,0.,0), q=(0.,0.,0.,1.), frg_idx=0, occupancy=1.0, bfactor=0.0):
+    def Xq2PDB(self, Xcom=(0.,0.,0), q=(1.,0.,0.,0.), frg_idx=0, occupancy=1.0, bfactor=0.0):
         coor = self.Xq2Atomic(Xcom, q)
         return self.coor2PDB(coor, frg_idx, occupancy, bfactor)
     
@@ -119,7 +119,7 @@ class Mol:
                 ele, ZCharge[ele.upper()], x, y, z)
         return inp
 
-    def Xq2INP(self, Xcom=(0.,0.,0), q=(0.,0.,0.,1.)):
+    def Xq2INP(self, Xcom=(0.,0.,0), q=(1.,0.,0.,0.)):
         coor = self.Xq2Atomic(Xcom, q)
         return self.coor2INP(coor)
 
