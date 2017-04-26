@@ -666,7 +666,7 @@ class Rtree:
         newCentre = self._newCentre(parent)
         newSize = [parent.size/2., parent.size/2.]
         if parent is self.root:
-            newSize[0] = 3.2
+            newSize[0] = (parent.pos - 2.0)/2.
             newSize[1] =  parent.size - newSize[0] 
             newCentre = (parent.pos - newSize[0], parent.pos + newSize[1])
         for i in range(2):
@@ -787,7 +787,8 @@ class Rtree:
 import pickle
 class  mesh:
     def __init__(self):
-        self.mesh = Rtree('wtr_wtrR', 8.4, 5.0)
+        #self.mesh = Rtree('wtr_wtrR', 8.4, 5.0)
+        self.mesh = Rtree('wtr_wtrR', 8.857142857142857, 5.0)
         self.confs = set()
         self.confs.update(self._iter_conf())
         self.n = len(self.confs)
