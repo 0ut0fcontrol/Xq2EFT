@@ -209,10 +209,11 @@ class EFT_calculator:
         Xcom, q = self._spherical2Xq(coor)
         return self._Xq2PDB(Xcom, q, occupancy, bfactor)
 
-    def _Xq2INP(self, Xcom,q,GAMESS_Settings):
-        inp = GAMESS_Settings
+    def _Xq2INP(self, Xcom, q, head=GAMESS_Settings):
+        inp = head
         inp += self.com.Xq2INP()
         inp += self.probe.Xq2INP(Xcom, q)
+        inp += ' $END'
         return inp
     def _spherical2INP(self, coor):
         Xcom, q = self._spherical2Xq(coor)

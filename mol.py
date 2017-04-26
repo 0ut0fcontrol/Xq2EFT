@@ -117,10 +117,11 @@ class Mol:
             x, y, z = coor[i]
             inp += "%2s%8s%15.10f%15.10f%15.10f\n"%(
                 ele, ZCharge[ele.upper()], x, y, z)
+        return inp
 
     def Xq2INP(self, Xcom=(0.,0.,0), q=(0.,0.,0.,1.)):
         coor = self.Xq2Atomic(Xcom, q)
-        return coor2INP(coor)
+        return self.coor2INP(coor)
 
 # A class that holds information related to the atomic structure of a water
 # molecule. It also includes several methods that carries out operations 
