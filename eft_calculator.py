@@ -113,7 +113,29 @@ class EFT_calculator:
         
     # Evaluate the Xcom and q for a pair of mols by querying the grid
     def eval(self, Xcom0, q0, Xcom1, q1):
-        X, q = self.Xqfrom2Xq(Xcom0, q0, Xcom1, q1)
+        # move COM of mol0 to origin
+        X = Xcom1 - Xcom0
+        # reorient to align mol0 with refCoor
+        R = tools.q2R(q0)
+        X = np.dot(X, R)
+        q = tools.qdiv(q1, q0)
+        # Use mirror symmetry of mol0 to move mol1 such that its COM has positive y and z values
+        reflections = []
+        qsub = q[1:]
+        for i in self.com.refl_axes:
+            if X[i] < 0:
+                X[i] = -X[i]
+                # the following operation on q is equivalent to changing R to MRM 
+                # i.e., the probe mol is reflected twice, once in the reference frame,
+                # once in the molecular frame.
+                qsub[i] = -qsub[i]
+                qsub[:] = -qsub
+                reflections.append(i)
+        # Use mirror symmetry of mol1 to orient it such that it has positive q[0] and q[1] values
+        if q[0] < 0:
+            q = -q
+        if q[1] < 0:
+            q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
         # convert X, q to polar coordinates
         r, phi, theta = tools.xyz2spherical(X)
         ophi1, ophi2, otheta = tools.q2spherical(q)

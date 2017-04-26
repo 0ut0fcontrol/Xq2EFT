@@ -5,8 +5,9 @@ from time import time
 import heapq
 from matplotlib import pyplot as plt
 
-from eft_calculator import EFT_calculator, Water
+from eft_calculator import EFT_calculator
 import tools
+from mol import molType
 
 
 def load_coordinates(name):
@@ -21,7 +22,7 @@ class Classical_calculator:
         self.charge = [-0.834, 0.417, 0.417]
 
     def eval(self, coors):
-        mol = Water()
+        mol = molType('wtr')
         coor0 = coors[:3]
         coor1 = coors[3:]
         e = 0.
@@ -60,7 +61,7 @@ def test_random_set():
     trq1 = []
     all = []
     t1 = time()
-    for i in range(2, 2000):
+    for i in range(1, 2001):
         # load atomic coor 
         name = 'test%04d.inp' % i
         coors = load_coordinates(name)
@@ -70,8 +71,8 @@ def test_random_set():
         fce0 += list(eft[1:4])
         trq0 += list(eft[4:7])
         # convert atomic coor to r, phi, theta... 
-        X0, q0 = calculator.mol.atomic2Xq(coors[:3])
-        X1, q1 = calculator.mol.atomic2Xq(coors[3:])
+        X0, q0 = calculator.com.atomic2Xq(coors[:3])
+        X1, q1 = calculator.probe.atomic2Xq(coors[3:])
         # evaluate with calculator
         eft = calculator.eval(X0, q0, X1, q1)
         e1.append(eft[0])
@@ -105,7 +106,7 @@ def test_random_set():
 
 if __name__ == '__main__':
     order = 3
-    calculator = EFT_calculator(order)
+    calculator = EFT_calculator('wtr','wtr',order)
     t0 = time()
     cc = Classical_calculator()
     #calculator.setup('grid_data.txt')
