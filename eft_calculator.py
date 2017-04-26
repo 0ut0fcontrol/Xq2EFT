@@ -113,6 +113,27 @@ class EFT_calculator:
         
     # Evaluate the Xcom and q for a pair of mols by querying the grid
     def eval(self, Xcom0, q0, Xcom1, q1):
+        X, q = self.Xqfrom2Xq(Xcom0, q0, Xcom1, q1)
+        # convert X, q to polar coordinates
+        r, phi, theta = tools.xyz2spherical(X)
+        ophi1, ophi2, otheta = tools.q2spherical(q)
+        coor = [r, phi, theta, ophi1, ophi2, otheta]
+        # use the grid to obtain results
+        eft = self.grid.interpolate(coor, self.order)
+        ener = eft[0]
+        force = eft[1:4]
+        torque = eft[4:7]
+        # Reverse the operations for mol0 mirror symmetry back
+        for i in reflections:
+            force[i] = -force[i]
+            torque[i] = -torque[i]
+            torque[:] = -torque
+        # Reverse the reorientation applied to align mol0 with refCoor
+        force[:] = np.dot(force, R.T)
+        torque[:] = np.dot(torque, R.T)
+        return eft
+
+    def Xqfrom2Xq(self, Xcom0, q0, Xcom1, q1):
         # move COM of mol0 to origin
         X = Xcom1 - Xcom0
         # reorient to align mol0 with refCoor
@@ -136,24 +157,7 @@ class EFT_calculator:
             q = -q
         if q[1] < 0:
             q[0], q[1], q[2], q[3] = -q[1], q[0], q[3], -q[2]
-        # convert X, q to polar coordinates
-        r, phi, theta = tools.xyz2spherical(X)
-        ophi1, ophi2, otheta = tools.q2spherical(q)
-        coor = [r, phi, theta, ophi1, ophi2, otheta]
-        # use the grid to obtain results
-        eft = self.grid.interpolate(coor, self.order)
-        ener = eft[0]
-        force = eft[1:4]
-        torque = eft[4:7]
-        # Reverse the operations for mol0 mirror symmetry back
-        for i in reflections:
-            force[i] = -force[i]
-            torque[i] = -torque[i]
-            torque[:] = -torque
-        # Reverse the reorientation applied to align mol0 with refCoor
-        force[:] = np.dot(force, R.T)
-        torque[:] = np.dot(torque, R.T)
-        return eft
+        return X, q
 
     # Generate atomic coordinates for mol pair for grid points along with
     # an id. The optional arguments can be used to specify a range for the id.
@@ -201,7 +205,7 @@ class EFT_calculator:
 
     def _Xq2PDB(self, Xcom, q, occupancy=1.0, bfactor=0.0):
         pdb = 'REMARK  99 Xcom:%8.3f%8.3f%8.3f q:%8.3f%8.3f%8.3f%8.3f\n'%(tuple(Xcom)+tuple(q))
-        pdb = self.com.Xq2PDB()
+        pdb += self.com.Xq2PDB()
         pdb += self.probe.Xq2PDB(Xcom, q, 1, occupancy, bfactor)
         return pdb
 
