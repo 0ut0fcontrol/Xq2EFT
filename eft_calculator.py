@@ -178,9 +178,12 @@ class EFT_calculator:
             coors = self._spherical2PDB(x)
             yield i, coors
 
-    def gen_INP(self, confs=None):
+    def gen_INP(self, confs=None, Filter=False):
         if confs is None:confs=self.grid.gen_x()
         for i, x in enumerate(confs):
+            if Filter:
+                Xcom, q = self._spherical2Xq(x)
+                if self._XqClash(Xcom, q): continue
             coors = self._spherical2INP(x)
             yield i, coors
 
@@ -214,3 +217,20 @@ class EFT_calculator:
     def _spherical2INP(self, coor):
         Xcom, q = self._spherical2Xq(coor)
         return self._Xq2INP(Xcom, q)
+
+    def _XqClash(self, Xcom, q):
+        rcutlow = {'HH': 0.6, 'HC':1.3, 'HO':0.8, 'HN':0.8, 'HS':0.6,
+                'CC':2.0, 'CO': 1.5, 'CN':1.5, 'CS':2.0,
+                'OO':1.5, 'ON':1.5, 'OS':1.5,
+                'NN':1.5, 'NS':1.5}
+        for nn in rcutlow.keys(): rcutlow[nn[1]+nn[0]] = rcutlow[nn]
+       
+        probeCoor = self.probe.Xq2Atomic(Xcom, q)
+        for i in range(self.com.n):
+            for j in range(self.probe.n):
+                cutoff = rcutlow[self.com.mol[i][0]+self.probe.mol[j][0]]
+                atom_dist = np.linalg.norm(self.com.refCoor[i] - probeCoor[j])
+                if atom_dist < cutoff:
+                    return True
+           
+
