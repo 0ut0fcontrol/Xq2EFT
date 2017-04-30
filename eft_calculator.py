@@ -64,14 +64,19 @@ class EFT_calculator:
 
     def fill_with_QM(self, logfilelist):
         """ input filename is a file with all gird GAMESS result log in order."""
-        loglist = open(logfilelist, 'r').readlines()
-        for i in range(len(loglist)):
-            loglist[i] = loglist[i].rstrip()
-        i = 0
+        leaves = []
         for leaf, x in self.grid._gen_leaves_with_x():
-            leaf.y, coord = self._parseQMlog(loglist[i]) #coord is not using here
-            i += 1
-            if i >=len(loglist):break
+            leaves.append(leaf)
+
+        with open(logfilelist, 'r')  as f:
+            for log in f:
+                log = log.rstrip()
+                # conf.dat/EFT_0000/eft.00000000.inp.log
+                confid = int(log.split('/')[-1].split('.')[-3])
+                leaves[confid].y, coord = self._parseQMlog(log) #coord is not using here
+        for leaf in leaves:
+            if leaf.y is None:
+                leaf.y = np.array([100.0] * 7)
 
     def _parseQMlog(self, logname):
         """extract energy, force from GAMESS log file and 

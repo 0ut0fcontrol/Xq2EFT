@@ -1,12 +1,12 @@
 #!/usr/bin/env python2
 import numpy as np
-from eft_calculator import EFT_calculator, Water
+from eft_calculator import EFT_calculator
 import tools
 import sys
 from time import time
 
 qmLogList = sys.argv[1]
-calculator = EFT_calculator()
+calculator = EFT_calculator('wtr','alc')
 t1 = time()
 calculator.setup()
 t2 = time()
